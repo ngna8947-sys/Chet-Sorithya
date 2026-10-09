@@ -2875,16 +2875,10 @@ def handle(message):
     if text in ("👜 កាបូបលុយ", "👜 Wallet"):
         livechat_users.discard(uid)
         b = bal(uid)
-        my_deps = [(k, v) for k, v in store_deps.items()
-                   if v.get("uid") == uid_str]
-        confirmed = sum(float(v.get("amount",0)) for _, v in my_deps if v.get("status")=="confirmed")
-        pending   = sum(float(v.get("amount",0)) for _, v in my_deps if v.get("status")=="pending")
         bot.send_message(uid,
             f"👜 <b>{'កាបូបលុយ' if lang=='kh' else 'My Wallet'}</b>\n"
             f"━━━━━━━━━━━━━━━━━━\n"
             f"💳 សាច់ប្រាក់: <b>${b:.2f}</b>\n"
-            f"✅ សរុបដាក់: <b>${confirmed:.2f}</b>\n"
-            f"⏳ កំពុងរង់ចាំ: <b>${pending:.2f}</b>\n"
             f"━━━━━━━━━━━━━━━━━━\n"
             f"ចុច 💳 {'ដាក់ប្រាក់' if lang=='kh' else 'Top Up'} ដើម្បីដាក់លុយ",
             parse_mode="HTML", reply_markup=main_kb(uid)); return
