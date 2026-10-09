@@ -81,7 +81,7 @@ ADMIN_ID           = 5630396613
 # Bakong KHQR (ដាក់ Token ពេញលេញពីអ៊ីមែលរបស់អ្នក)
 BAKONG_TOKEN       = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXJjb2pMZm1lYzJNY1GQ2NDAyYiJvJiJvJjkuSWJXi03NDQzNDQzNTIzNzFNaHptNGxDbTYiLCJpc3MiOiJCYWtvbmcifQ.eyJhaGNvdW50X2lkIjoibW9uX3NhbW5hbmdAYmtydCIsImRhdGVfaXNzdWVkIjoiMTc2MzgyOTc1MCIsImV4cGlyZXNfYXQiOjE4MjkyMzg5NTB9"
 BANK_ACCOUNT       = "mon_samnang@bkrt"
-MERCHANT_NAME      = "KhmerSMM"
+MERCHANT_NAME      = "Chet Sorithya"
 MERCHANT_CITY      = "Phnom Penh"
 
 DEPOSIT_EXPIRE_SEC = 300   # 5 នាទី
