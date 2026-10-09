@@ -254,10 +254,10 @@ STRINGS = {
             "4️⃣ ចុច <b>📊 សេវាកម្ម SMM</b> → Platform → សេវា → ចំនួន → ផ្ញើ Link[cite: 1]"
         ),
         "support_msg": (
-            "💬 <b>Live Chat (ជជែកផ្ទាល់ជាមួយ Admin)</b>\n"
+            "💬 <b>ជំនួយ Support</b>\n"
             "━━━━━━━━━━━━━━━━━━\n"
-            "💬 សូមផ្ញើសារ ឬបញ្ហាដែលអ្នកចង់សួរមកទីនេះបាន Admin នឹងតបតទៅវិញក្នុងពេលឆាប់ៗនេះ!\n"
-            "👇 (ដើម្បីចាកចេញ សូមចុចប៊ូតុង Menu ខាងក្រោម)"
+            "💬 រាល់បញ្ហា သို့မဟုတ် ចម្ងល់ផ្សេងៗ សូមទាក់ទងមកកាន់ Telegram ផ្ទាល់៖\n"
+            "👉 <b>@ChetSorithya01</b>"
         ),
         "fallback": "❓ ប្រើ Menu ខាងក្រោម",
     },
@@ -297,10 +297,10 @@ STRINGS = {
             "4️⃣ Tap <b>📊 SMM Services</b> → Platform → Service → Qty → Send Link[cite: 1]"
         ),
         "support_msg": (
-            "💬 <b>Live Chat with Admin</b>\n"
+            "💬 <b>Support</b>\n"
             "━━━━━━━━━━━━━━━━━━\n"
-            "💬 Please send your message or question here, and an admin will reply to you shortly!\n"
-            "👇 (To exit, click the Menu button below)"
+            "💬 For any issues or questions, please contact via Telegram:\n"
+            "👉 <b>@ChetSorithya01</b>"
         ),
         "fallback": "❓ Use the menu below",
     },
@@ -1906,51 +1906,6 @@ def handle(message):
         bot.send_message(uid, t(uid, "cancel_ok"), reply_markup=kb); return
 
     # ══════════════════════════════════════════════════════
-    #  LIVE CHAT: ADMIN REPLY (Replying to user messages)
-    # ══════════════════════════════════════════════════════
-    if uid == ADMIN_ID and message.reply_to_message:
-        replied_id = message.reply_to_message.message_id
-        target_uid = livechat_sessions.get(str(replied_id))
-        if target_uid:
-            try:
-                bot.copy_message(chat_id=int(target_uid), from_chat_id=ADMIN_ID, message_id=message.message_id)
-                bot.message_reaction(ADMIN_ID, message.message_id, reaction=[{"type": "emoji", "emoji": "👍"}])
-            except Exception as e:
-                bot.send_message(ADMIN_ID, f"❌ បញ្ជូនសារមិនទាន់បានទេ: {e}")
-            return
-
-    # ══════════════════════════════════════════════════════
-    #  LIVE CHAT: USER SENDING MESSAGE TO ADMIN
-    # ══════════════════════════════════════════════════════
-    if uid in livechat_users and uid != ADMIN_ID:
-        if text in ("🏠 ត្រឡប់ Menu ដើម", "🏠 Back to Menu", "🏠 Menu"):
-            livechat_users.discard(uid)
-            _show_welcome(uid)
-            return
-        
-        try:
-            user_info = users_db.get(uid_str, {})
-            name = user_info.get("name", "User")
-            username = f"@{user_info['username']}" if user_info.get("username") else "No Username"
-            
-            header = f"💬 <b>Live Chat Message</b>\n👤 <b>{name}</b> ({username})\n🆔 <code>{uid}</code>\n━━━━━━━━━━━━━━━━━━\n"
-            
-            # Forward or copy message to admin with reply ability mapping
-            if message.content_type == "text":
-                sent_admin_msg = bot.send_message(ADMIN_ID, header + message.text, parse_mode="HTML")
-            else:
-                bot.send_message(ADMIN_ID, header, parse_mode="HTML")
-                sent_admin_msg = bot.copy_message(chat_id=ADMIN_ID, from_chat_id=uid, message_id=message.message_id)
-            
-            livechat_sessions[str(sent_admin_msg.message_id)] = uid_str
-            _save(LIVECHAT_FILE, livechat_sessions)
-            
-            bot.message_reaction(uid, message.message_id, reaction=[{"type": "emoji", "emoji": "✍️"}])
-        except Exception as e:
-            logger.error(f"{CLR_RED}LiveChat error: {e}{CLR_RESET}")
-        return
-
-    # ══════════════════════════════════════════════════════
     #  ADMIN SECTION
     # ══════════════════════════════════════════════════════
     if uid == ADMIN_ID:
@@ -2869,7 +2824,7 @@ def handle(message):
         bot.send_message(uid, "\n".join(lines), parse_mode="HTML", reply_markup=main_kb(uid)); return
 
     if text in ("💬 ជំនួយ Support", "💬 Support"):
-        livechat_users.add(uid)
+        livechat_users.discard(uid)
         bot.send_message(uid, t(uid, "support_msg"), parse_mode="HTML", reply_markup=main_kb(uid)); return
 
     if text in ("👜 កាបូបលុយ", "👜 Wallet"):
