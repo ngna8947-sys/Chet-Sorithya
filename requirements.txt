@@ -1,3 +1,6 @@
-python-dotenv
+pyTelegramBotAPI
+requests
+flask
 qrcode
 pillow
+bakong-khqr
