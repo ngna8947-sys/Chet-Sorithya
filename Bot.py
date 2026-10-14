@@ -256,7 +256,7 @@ STRINGS = {
         "support_msg": (
             "💬 <b>ជំនួយ Support</b>\n"
             "━━━━━━━━━━━━━━━━━━\n"
-            "💬 រាល់បញ្ហា သို့မဟုတ် ចម្ងល់ផ្សេងៗ សូមទាក់ទងមកកាន់ Telegram ផ្ទាល់៖\n"
+            "💬 រាល់បញ្ហា ឬក៏ចម្ងល់ផ្សេងៗ សូមទាក់ទងមកកាន់ Telegram ផ្ទាល់៖\n"
             "👉 <b>@ChetSorithya01</b>"
         ),
         "fallback": "❓ ប្រើ Menu ខាងក្រោម",
@@ -517,19 +517,39 @@ def smm_qty_kb(slug, s):
     return InlineKeyboardMarkup(btns)
 
 def products_kb():
-    btns = []
-    game_ids = ["mobilelegends", "freefire", "roblox", "pubgmobile"]
-    for p in products:
-        if p["id"] in game_ids: continue
-        total = sum(
-            len(stock.get(_stock_key(p["id"], i), []))
-            for i in range(len(p.get("plans", [])))
-        ) or len(stock.get(p["id"], []))
-        label = f"{p.get('icon','📦')} {p['name']}"
-        if total == 0:
-            label += "  ❌ អស់"
-        btns.append([InlineKeyboardButton(label, callback_data=f"prod:{p['id']}")])
-    btns.append([InlineKeyboardButton("🔙 Back", callback_data="back:main")])
+    # ហាងឌីជីថល (Shop Menu) រៀបចំជាប៊ូតុង ២ ជួរស្អាត តាមការចង់បានរបស់អ្នក
+    btns = [
+        [
+            InlineKeyboardButton("🎬 Capcut Pro", callback_data="prod:capcut"),
+            InlineKeyboardButton("📱 ALIGHT MOTION", callback_data="prod:alightmotion")
+        ],
+        [
+            InlineKeyboardButton("✨ GEMINI PRO", callback_data="prod:gemini"),
+            InlineKeyboardButton("🎨 Canva Pro", callback_data="prod:canva")
+        ],
+        [
+            InlineKeyboardButton("🤖 TEST API", callback_data="prod:testapi"),
+            InlineKeyboardButton("📄 Adobe Full", callback_data="prod:adobe")
+        ],
+        [
+            InlineKeyboardButton("📦 Email", callback_data="prod:email"),
+            InlineKeyboardButton("🟢 Spotify", callback_data="prod:spotify")
+        ],
+        [
+            InlineKeyboardButton("🪟 Microsoft", callback_data="prod:microsoft"),
+            InlineKeyboardButton("📄 iLovePdf", callback_data="prod:ilovepdf")
+        ],
+        [
+            InlineKeyboardButton("1 / 3", callback_data="page:1"),
+            InlineKeyboardButton("➡️ បន្ទាប់", callback_data="page:next")
+        ],
+        [
+            InlineKeyboardButton("🔄 ផ្ទុកឡើងវិញ", callback_data="reload")
+        ],
+        [
+            InlineKeyboardButton("🔙 Back", callback_data="back:main")
+        ]
+    ]
     return InlineKeyboardMarkup(btns)
 
 def plans_kb(prod_id):
@@ -1789,7 +1809,7 @@ def cb_back(call):
     if dest == "main":
         _show_welcome(uid)
     elif dest == "shop":
-        bot.send_message(uid, "🛍️ <b>Shop</b>", parse_mode="HTML", reply_markup=products_kb())
+        bot.send_message(uid, "🛍️ <b>ហាង</b>", parse_mode="HTML", reply_markup=products_kb())
     elif dest == "gamemenu":
         bot.send_message(uid, "💎 <b>ថុបអាប់ហ្គេមទាំងអស់</b>\n━━━━━━━━━━━━━━━━━━\nជ្រើសរើសហ្គេម៖", parse_mode="HTML", reply_markup=game_menu_kb())
     elif dest == "smmcats":
@@ -2357,7 +2377,7 @@ def handle(message):
             return
 
         if text == "💳 ប្រាក់បញ្ញើ":
-            pend = [(k, v) for k, v in store_deps.items() if v.get("status")=="pending"]
+            pend = [(k, v) for k, v in store_deps.items() if v.get("status"]=="pending"]
             if not pend:
                 bot.send_message(uid, "✅ គ្មានការដាក់លុយ pending", reply_markup=admin_kb()); return
             lines = ["<b>💳 ប្រាក់បញ្ញើ រង់ចាំ</b>\n━━━━━━━━━━━━━━━━━━"]
@@ -2774,7 +2794,7 @@ def handle(message):
     if text in ("🛍️ Shop", "🛍️ ហាងឌីជីថល", "🛍️ ហាង"):
         livechat_users.discard(uid)
         bot.send_message(uid,
-            "🛍️ <b>ហាងឌីជីថល</b>\n━━━━━━━━━━━━━━━━━━",
+            "🛍️ <b>ហាង</b>\n━━━━━━━━━━━━━━━━━━",
             parse_mode="HTML", reply_markup=products_kb()); return
 
     if text in ("💎 ថុបអាប់ហ្គេម", "💎 Game Top Up"):
@@ -2867,25 +2887,53 @@ def handle(message):
     bot.send_message(uid, t(uid, "fallback"), reply_markup=main_kb(uid))
 
 # ═══════════════════════════════════════════════════════════
-#  BROADCAST
+#  BROADCAST (ផ្ញើជូនអតិថិជនទាំងអស់រួមមានប៊ូតុង "🛒 ទិញឥឡូវ")
 # ═══════════════════════════════════════════════════════════
 def _do_broadcast(admin_uid, message):
     waiting.pop(admin_uid, None)
     sent = failed = 0
+    
+    # ប៊ូតុង Inline Keyboard សម្រាប់ចុចទិញភ្លាមៗនៅខាងក្រោមសារផ្សព្វផ្សាយ
+    broadcast_kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🛒 ទិញឥឡូវ", callback_data="back:shop")]
+    ])
+    
     for u_id in list(users_db.keys()):
         try:
             if message.photo:
-                bot.send_photo(int(u_id), message.photo[-1].file_id, caption=message.caption or "")
+                bot.send_photo(
+                    int(u_id), 
+                    message.photo[-1].file_id, 
+                    caption=message.caption or "", 
+                    parse_mode="HTML", 
+                    reply_markup=broadcast_kb
+                )
             elif message.video:
-                bot.send_video(int(u_id), message.video.file_id, caption=message.caption or "")
+                bot.send_video(
+                    int(u_id), 
+                    message.video.file_id, 
+                    caption=message.caption or "", 
+                    parse_mode="HTML", 
+                    reply_markup=broadcast_kb
+                )
             else:
-                bot.send_message(int(u_id), message.text or "", parse_mode="HTML")
+                bot.send_message(
+                    int(u_id), 
+                    message.text or "", 
+                    parse_mode="HTML", 
+                    reply_markup=broadcast_kb
+                )
             sent += 1
-        except: failed += 1
+        except: 
+            failed += 1
         time.sleep(0.05)
-    bot.send_message(admin_uid,
+        
+    bot.send_message(
+        admin_uid,
         f"📢 <b>ផ្សព្វផ្សាយរួចរាល់!</b>\n✅ បានផ្ញើ: {sent} | ❌ បរាជ័យ: {failed}",
-        parse_mode="HTML", reply_markup=admin_kb())
+        parse_mode="HTML", 
+        reply_markup=admin_kb()
+    )
 
 # ═══════════════════════════════════════════════════════════
 #  PHOTO HANDLER
