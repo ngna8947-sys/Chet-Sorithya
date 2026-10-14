@@ -860,9 +860,11 @@ def cb_prod(call):
            f"📦 Plans:\n{plans_txt}\n"
            f"━━━━━━━━━━━━━━━━━━\n"
            f"{'ជ្រើស Plan:' if lang=='kh' else 'Choose Plan:'}")
-    try: bot.edit_message_text(txt, chat_id=uid, message_id=call.message.message_id,
+    try:
+        bot.edit_message_text(txt, chat_id=uid, message_id=call.message.message_id,
                                 parse_mode="HTML", reply_markup=plans_kb(pid))
-    except: bot.send_message(uid, txt, parse_mode="HTML", reply_markup=plans_kb(pid))
+    except:
+        bot.send_message(uid, txt, parse_mode="HTML", reply_markup=plans_kb(pid))
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("plan_oos:"))
 def cb_plan_oos(call):
@@ -929,10 +931,11 @@ def cb_admprod(call):
             InlineKeyboardButton("✅ យល់ព្រម Clear", callback_data=f"admprod:confirmclr:{pid}"),
             InlineKeyboardButton("❌ Cancel",         callback_data=f"admprod:cancel:{pid}"),
         ]])
-        bot.send_message(uid,
-            f"⚠️ Clear stock <b>{p['name'] if p else pid}</b>?\n"
-            f"📦 Items: <b>{total_cnt}</b> នឹងត្រូវលុប!",
-            parse_mode="HTML", reply_markup=kb)
+        txt = f"⚠️ Clear stock <b>{p['name'] if p else pid}</b>?\n📦 Items: <b>{total_cnt}</b> នឹងត្រូវលុប!"
+        try:
+            bot.edit_message_text(txt, chat_id=uid, message_id=call.message.message_id, parse_mode="HTML", reply_markup=kb)
+        except:
+            bot.send_message(uid, txt, parse_mode="HTML", reply_markup=kb)
 
     elif action == "confirmclr":
         p_obj = _get_product(pid)
@@ -941,9 +944,11 @@ def cb_admprod(call):
             stock.pop(_stock_key(pid, i), None)
         stock.pop(pid, None)
         _save(STOCK_FILE, stock)
-        bot.send_message(uid,
-            f"✅ Stock <b>{p['name'] if p else pid}</b> cleared (all plans)!",
-            parse_mode="HTML", reply_markup=admin_kb())
+        txt = f"✅ Stock <b>{p['name'] if p else pid}</b> cleared (all plans)!"
+        try:
+            bot.edit_message_text(txt, chat_id=uid, message_id=call.message.message_id, parse_mode="HTML")
+        except:
+            bot.send_message(uid, txt, parse_mode="HTML")
 
     elif action == "del":
         kb = InlineKeyboardMarkup([[
@@ -951,10 +956,11 @@ def cb_admprod(call):
             InlineKeyboardButton("❌ Cancel",          callback_data=f"admprod:cancel:{pid}"),
         ]])
         cnt = len(_get_stock(pid))
-        bot.send_message(uid,
-            f"⚠️ Delete product <b>{p['name'] if p else pid}</b>?\n"
-            f"📦 Stock: <b>{cnt}</b> items នឹងត្រូវលុបផងដែរ!",
-            parse_mode="HTML", reply_markup=kb)
+        txt = f"⚠️ Delete product <b>{p['name'] if p else pid}</b>?\n📦 Stock: <b>{cnt}</b> items នឹងត្រូវលុបផងដែរ!"
+        try:
+            bot.edit_message_text(txt, chat_id=uid, message_id=call.message.message_id, parse_mode="HTML", reply_markup=kb)
+        except:
+            bot.send_message(uid, txt, parse_mode="HTML", reply_markup=kb)
 
     elif action == "confirmdel":
         name = p["name"] if p else pid
@@ -966,12 +972,17 @@ def cb_admprod(call):
             stock.pop(_stock_key(pid, i), None)
         stock.pop(pid, None)
         _save(STOCK_FILE, stock)
-        bot.send_message(uid,
-            f"✅ Product <b>{name}</b> deleted! (Stock cleared)",
-            parse_mode="HTML", reply_markup=admin_kb())
+        txt = f"✅ Product <b>{name}</b> deleted! (Stock cleared)"
+        try:
+            bot.edit_message_text(txt, chat_id=uid, message_id=call.message.message_id, parse_mode="HTML")
+        except:
+            bot.send_message(uid, txt, parse_mode="HTML")
 
     elif action == "cancel":
-        bot.send_message(uid, "❌ Cancelled", reply_markup=admin_kb())
+        try:
+            bot.delete_message(uid, call.message.message_id)
+        except:
+            pass
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("addstock_prod:"))
 def cb_addstock_prod(call):
@@ -981,13 +992,11 @@ def cb_addstock_prod(call):
     bot.answer_callback_query(call.id)
     p = _get_product(pid)
     if not p:
-        bot.send_message(uid, "❌ Product រកមិនឃើញ", reply_markup=admin_kb()); return
+        bot.answer_callback_query(call.id, "❌ Product រកមិនឃើញ", show_alert=True); return
     
     plans = p.get("plans", [])
     if not plans:
-        bot.send_message(uid,
-            f"❌ <b>{p['name']}</b> គ្មាន Plan!\nប្រើ ✏️ Edit Price ដើម្បីបន្ថែម plans ជាមុន.",
-            parse_mode="HTML", reply_markup=admin_kb()); return
+        bot.answer_callback_query(call.id, "❌ ផលិតផលនេះគ្មាន Plan! សូមបន្ថែម Plan ជាមុន។", show_alert=True); return
     btns = []
     for i, pl in enumerate(plans):
         cnt = _get_plan_stock_count(pid, i)
@@ -996,10 +1005,11 @@ def cb_addstock_prod(call):
             f"{pl['label']} — ${pl['price']:.2f}  {status}",
             callback_data=f"addstock_plan:{pid}:{i}")])
     btns.append([InlineKeyboardButton("🔙 Back", callback_data="addstock_back")])
-    bot.send_message(uid,
-        f"➕ <b>Add Stock — {p.get('icon','')} {p['name']}</b>\n"
-        f"━━━━━━━━━━━━━━━━━━\nជ្រើស Plan ដើម្បីដាក់ stock:",
-        parse_mode="HTML", reply_markup=InlineKeyboardMarkup(btns))
+    txt = f"➕ <b>Add Stock — {p.get('icon','')} {p['name']}</b>\n━━━━━━━━━━━━━━━━━━\nជ្រើស Plan ដើម្បីដាក់ stock:"
+    try:
+        bot.edit_message_text(txt, chat_id=uid, message_id=call.message.message_id, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(btns))
+    except:
+        bot.send_message(uid, txt, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(btns))
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("addstock_plan:"))
 def cb_addstock_plan(call):
@@ -1032,14 +1042,16 @@ def cb_addstock_back(call):
     if uid != ADMIN_ID: return
     bot.answer_callback_query(call.id)
     if not products:
-        bot.send_message(uid, "❌ គ្មាន Product", reply_markup=admin_kb()); return
+        bot.answer_callback_query(call.id, "❌ គ្មាន Product", show_alert=True); return
     btns = []
     for p in products:
         btns.append([InlineKeyboardButton(
             f"{p.get('icon','📦')} {p['name']}", callback_data=f"addstock_prod:{p['id']}")])
-    bot.send_message(uid,
-        "➕ <b>Add Stock</b>\n━━━━━━━━━━━━━━━━━━\nជ្រើស Product:",
-        parse_mode="HTML", reply_markup=InlineKeyboardMarkup(btns))
+    txt = "➕ <b>Add Stock</b>\n━━━━━━━━━━━━━━━━━━\nជ្រើស Product:"
+    try:
+        bot.edit_message_text(txt, chat_id=uid, message_id=call.message.message_id, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(btns))
+    except:
+        bot.send_message(uid, txt, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(btns))
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("editprice_prod:"))
 def cb_editprice_prod(call):
@@ -1049,7 +1061,7 @@ def cb_editprice_prod(call):
     bot.answer_callback_query(call.id)
     p = _get_product(pid)
     if not p:
-        bot.send_message(uid, "❌ Product រកមិនឃើញ", reply_markup=admin_kb()); return
+        bot.answer_callback_query(call.id, "❌ Product រកមិនឃើញ", show_alert=True); return
     plans = p.get("plans", [])
     btns  = []
     for i, pl in enumerate(plans):
@@ -1065,11 +1077,16 @@ def cb_editprice_prod(call):
     btns.append([InlineKeyboardButton(
         "➕ បន្ថែម Plan ថ្មី", callback_data=f"editprice_addplan:{pid}")])
     btns.append([InlineKeyboardButton("🔙 Back", callback_data="editprice_back")])
-    bot.send_message(uid,
+    txt = (
         f"✏️ <b>Edit Plans — {p.get('icon','')} {p['name']}</b>\n"
         f"━━━━━━━━━━━━━━━━━━\n"
-        f"ចុច ✏️ Label ដើម្បីកែឈ្មោះ  |  🗑️ ដើម្បីលុប Plan:",
-        parse_mode="HTML", reply_markup=InlineKeyboardMarkup(btns))
+        f"ចុច ✏️ Label ដើម្បីកែឈ្មោះ  |  🗑️ ដើម្បីលុប Plan:"
+    )
+    try:
+        bot.edit_message_text(txt, chat_id=uid, message_id=call.message.message_id,
+                              parse_mode="HTML", reply_markup=InlineKeyboardMarkup(btns))
+    except:
+        bot.send_message(uid, txt, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(btns))
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("editprice_plan:"))
 def cb_editprice_plan(call):
@@ -1116,14 +1133,17 @@ def cb_editprice_back(call):
     if uid != ADMIN_ID: return
     bot.answer_callback_query(call.id)
     if not products:
-        bot.send_message(uid, "❌ គ្មាន Product", reply_markup=admin_kb()); return
+        bot.answer_callback_query(call.id, "❌ គ្មាន Product", show_alert=True); return
     btns = []
     for p in products:
         btns.append([InlineKeyboardButton(
             f"{p.get('icon','📦')} {p['name']}", callback_data=f"editprice_prod:{p['id']}")])
-    bot.send_message(uid,
-        "✏️ <b>Edit Price / Plans</b>\n━━━━━━━━━━━━━━━━━━\nជ្រើស Product:",
-        parse_mode="HTML", reply_markup=InlineKeyboardMarkup(btns))
+    txt = "✏️ <b>Edit Price / Plans</b>\n━━━━━━━━━━━━━━━━━━\nជ្រើស Product:"
+    try:
+        bot.edit_message_text(txt, chat_id=uid, message_id=call.message.message_id,
+                              parse_mode="HTML", reply_markup=InlineKeyboardMarkup(btns))
+    except:
+        bot.send_message(uid, txt, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(btns))
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("editlabel_plan:"))
 def cb_editlabel_plan(call):
@@ -1159,9 +1179,11 @@ def cb_delplan(call):
         InlineKeyboardButton("✅ យល់ព្រម លុប", callback_data=f"delplan_ok:{pid}:{idx}"),
         InlineKeyboardButton("❌ Cancel",       callback_data=f"editprice_prod:{pid}"),
     ]])
-    bot.send_message(uid,
-        f"⚠️ លុប Plan <b>{plan['label']}</b> (${plan['price']:.2f})?",
-        parse_mode="HTML", reply_markup=kb)
+    txt = f"⚠️ លុប Plan <b>{plan['label']}</b> (${plan['price']:.2f})?"
+    try:
+        bot.edit_message_text(txt, chat_id=uid, message_id=call.message.message_id, parse_mode="HTML", reply_markup=kb)
+    except:
+        bot.send_message(uid, txt, parse_mode="HTML", reply_markup=kb)
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("delplan_ok:"))
 def cb_delplan_ok(call):
@@ -1178,12 +1200,10 @@ def cb_delplan_ok(call):
     stock.pop(_stock_key(pid, idx), None)
     _save(PRODUCTS_FILE, products)
     _save(STOCK_FILE, stock)
-    try: bot.edit_message_text(
-        f"✅ Plan <b>{label}</b> លុបរួចហើយ!",
-        chat_id=uid, message_id=call.message.message_id, parse_mode="HTML")
-    except: pass
-    bot.send_message(uid, f"✅ Plan <b>{label}</b> deleted.",
-                     parse_mode="HTML", reply_markup=admin_kb())
+    try:
+        bot.edit_message_text(f"✅ Plan <b>{label}</b> លុបរួចហើយ!", chat_id=uid, message_id=call.message.message_id, parse_mode="HTML")
+    except:
+        pass
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("back:"))
 def cb_back(call):
@@ -1193,12 +1213,20 @@ def cb_back(call):
     waiting.pop(uid, None)
     livechat_users.discard(uid)
     if dest == "main":
+        try:
+            bot.delete_message(uid, call.message.message_id)
+        except:
+            pass
         _show_welcome(uid)
     elif dest == "shop":
         if not products:
-            bot.send_message(uid, "❌ <b>ហាងកំពុងរៀបចំ</b>\n\nអែតមីនមិនទាន់បានដាក់បញ្ចូលផលិតផល ឬសេវាកម្មណាមួយឡើយ។ សូមអត់ធ្មត់រង់ចាំបន្តិច!", parse_mode="HTML", reply_markup=main_kb(uid))
+            txt = "❌ <b>ហាងកំពុងរៀបចំ</b>\n\nអែតមីនមិនទាន់បានដាក់បញ្ចូលផលិតផល ឬសេវាកម្មណាមួយឡើយ។ សូមអត់ធ្មត់រង់ចាំបន្តិច!"
         else:
-            bot.send_message(uid, "🛍️ <b>ហាង</b>\n━━━━━━━━━━━━━━━━━━", parse_mode="HTML", reply_markup=products_kb())
+            txt = "🛍️ <b>ហាង</b>\n━━━━━━━━━━━━━━━━━━"
+        try:
+            bot.edit_message_text(txt, chat_id=uid, message_id=call.message.message_id, parse_mode="HTML", reply_markup=products_kb())
+        except:
+            bot.send_message(uid, txt, parse_mode="HTML", reply_markup=products_kb())
 
 @bot.callback_query_handler(func=lambda c: c.data == "none")
 def cb_none(call):
