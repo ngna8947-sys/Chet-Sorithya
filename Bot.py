@@ -327,7 +327,7 @@ def deposit_amt_kb(uid=None, promo_code=None):
         callback_data="dep:custom")])
     return InlineKeyboardMarkup(btns)
 
-def products_kb():
+def products_list_kb():
     if not products:
         return InlineKeyboardMarkup([
             [InlineKeyboardButton("❌ មិនទាន់មានផលិតផលទេ", callback_data="none")],
@@ -337,10 +337,9 @@ def products_kb():
     btns = []
     row = []
     for p in products:
-        icon = p.get('icon', '📦')
         name = p['name']
         pid = p['id']
-        row.append(InlineKeyboardButton(f"{icon} {name}", callback_data=f"prod:{pid}"))
+        row.append(InlineKeyboardButton(f"📦 {name}", callback_data=f"shop_prod:{pid}"))
         if len(row) == 2:
             btns.append(row)
             row = []
@@ -370,7 +369,7 @@ def plans_kb(prod_id):
         else:
             label = f"✅ {plan['label']} — {price_str}"
             btns.append([InlineKeyboardButton(label, callback_data=f"plan:{prod_id}:{i}")])
-    btns.append([InlineKeyboardButton("🔙 Back", callback_data="back:shop")])
+    btns.append([InlineKeyboardButton("🔙 Back to Shop", callback_data="back:shop")])
     return InlineKeyboardMarkup(btns)
 
 # ═══════════════════════════════════════════════════════════
@@ -504,7 +503,7 @@ def _watch_deposit(uid, uid_str, dep_id, amount, start_ts, sent_msg_id=None):
         time.sleep(5)
 
     dep = store_deps.get(dep_id)
-    if dep and dep.get("status") == "pending":
+    if dep and dep.get("status"] == "pending":
         dep["status"] = "expired"; _save(STORE_DEP_FILE, store_deps)
         try: bot.send_message(uid, "⏰ <b>QR ផុតកំណត់!</b> សូម top up ម្ដងទៀត", parse_mode="HTML")
         except: pass
@@ -575,7 +574,7 @@ def _send_deposit_qr(uid, amount, label="💳 ដាក់ប្រាក់", b
             headers = {"Authorization": f"Bearer {BAKONG_TOKEN}", "Content-Type": "application/json"},
             timeout = 10,
         )
-        if r.ok and r.json().get("responseCode") == 0:
+        if r.ok and r.json().get("responseCode"] == 0:
             img_b64 = r.json().get("data", {}).get("image", "")
             if img_b64:
                 if "," in img_b64: img_b64 = img_b64.split(",", 1)[1]
@@ -767,7 +766,7 @@ def cb_manual_dep(call):
     total_credit = round(amount + bonus, 2)
 
     if action == "approve":
-        if dep.get("status") == "confirmed":
+        if dep.get("status"] == "confirmed":
             bot.answer_callback_query(call.id, "⚠️ សំណើនេះបានបញ្ជាក់រួចរាល់ហើយ!", show_alert=True)
             return
 
@@ -830,10 +829,11 @@ def cb_admaddall(call):
         waiting[uid] = "add_product_name"
         bot.send_message(uid, "➕ <b>បញ្ចូលឈ្មោះផលិតផលថ្មី៖</b>", parse_mode="HTML", reply_markup=cancel_kb())
 
-@bot.callback_query_handler(func=lambda c: c.data.startswith("prod:"))
-def cb_prod(call):
+# ─── SHOP PHOTO & PRODUCT DISPLAY HANDLERS ───
+@bot.callback_query_handler(func=lambda c: c.data.startswith("shop_prod:"))
+def cb_shop_prod(call):
     uid  = call.message.chat.id
-    pid  = call.data[5:]
+    pid  = call.data[10:]
     bot.answer_callback_query(call.id)
     p = _get_product(pid)
     if not p: return
@@ -853,6 +853,7 @@ def cb_prod(call):
         status = "✅ Available" if cnt > 0 else "❌ អស់"
         plan_lines.append(f"  • {pl['label']} — {price_str}  {status}")
     plans_txt = "\n".join(plan_lines) if plan_lines else "  (គ្មាន plan)"
+    
     txt = (f"{p.get('icon','📦')} <b>{p['name']}</b>\n"
            f"━━━━━━━━━━━━━━━━━━\n"
            f"📋 {p.get('desc','')}\n"
@@ -860,9 +861,17 @@ def cb_prod(call):
            f"📦 Plans:\n{plans_txt}\n"
            f"━━━━━━━━━━━━━━━━━━\n"
            f"{'ជ្រើស Plan:' if lang=='kh' else 'Choose Plan:'}")
+    
+    # Check if product has an image url or file_id stored in 'image' field
+    img = p.get("image", None)
     try:
-        bot.edit_message_text(txt, chat_id=uid, message_id=call.message.message_id,
-                                parse_mode="HTML", reply_markup=plans_kb(pid))
+        if img:
+            bot.send_photo(uid, img, caption=txt, parse_mode="HTML", reply_markup=plans_kb(pid))
+            try: bot.delete_message(uid, call.message.message_id)
+            except: pass
+        else:
+            bot.edit_message_text(txt, chat_id=uid, message_id=call.message.message_id,
+                                    parse_mode="HTML", reply_markup=plans_kb(pid))
     except:
         bot.send_message(uid, txt, parse_mode="HTML", reply_markup=plans_kb(pid))
 
@@ -1222,850 +1231,12 @@ def cb_back(call):
         if not products:
             txt = "❌ <b>ហាងកំពុងរៀបចំ</b>\n\nអែតមីនមិនទាន់បានដាក់បញ្ចូលផលិតផល ឬសេវាកម្មណាមួយឡើយ។ សូមអត់ធ្មត់រង់ចាំបន្តិច!"
         else:
-            txt = "🛍️ <b>ហាង</b>\n━━━━━━━━━━━━━━━━━━"
+            txt = "🛍️ <b>ហាងឌីជីថល</b>\n━━━━━━━━━━━━━━━━━━\n📦 <b>ជ្រើសរើសប្រភេទសេវាកម្ម:</b>"
         try:
-            bot.edit_message_text(txt, chat_id=uid, message_id=call.message.message_id, parse_mode="HTML", reply_markup=products_kb())
+            bot.send_photo(uid, products[0].get("image", "https://i.imgur.com/8Q6v3d7.png") if products and products[0].get("image") else "https://i.imgur.com/8Q6v3d7.png", caption=txt, parse_mode="HTML", reply_markup=products_list_kb())
+            try: bot.delete_message(uid, call.message.message_id)
+            except: pass
         except:
-            bot.send_message(uid, txt, parse_mode="HTML", reply_markup=products_kb())
-
-@bot.callback_query_handler(func=lambda c: c.data == "none")
-def cb_none(call):
-    bot.answer_callback_query(call.id, "❌ មិនទាន់មានផលិតផលទេ សូមអត់ធ្មត់រង់ចាំ Admin បន្ថែម!", show_alert=True)
-
-@bot.callback_query_handler(func=lambda c: c.data.startswith("useraction:"))
-def cb_useraction(call):
-    uid = call.message.chat.id
-    if uid != ADMIN_ID: bot.answer_callback_query(call.id); return
-    bot.answer_callback_query(call.id)
-    parts  = call.data.split(":", 2)
-    action = parts[1]
-    target = parts[2]
-
-    if action == "ban":
-        users_db.setdefault(target, {})["banned"] = True
-        _save(USERS_FILE, users_db)
-        name = users_db[target].get("name","?")
-        try: bot.edit_message_text(
-            f"🚫 <b>Banned:</b> {name} <code>{target}</code>",
-            chat_id=uid, message_id=call.message.message_id, parse_mode="HTML")
-        except: pass
-        try: bot.send_message(int(target), "🚫 គណនីរបស់អ្នកត្រូវបាន ban!")
-        except: pass
-
-    elif action == "unban":
-        users_db.setdefault(target, {})["banned"] = False
-        _save(USERS_FILE, users_db)
-        name = users_db[target].get("name","?")
-        try: bot.edit_message_text(
-            f"🔓 <b>Unbanned:</b> {name} <code>{target}</code>",
-            chat_id=uid, message_id=call.message.message_id, parse_mode="HTML")
-        except: pass
-        try: bot.send_message(int(target), "✅ គណនីរបស់អ្នកត្រូវបាន unban!")
-        except: pass
-
-    elif action == "addbal":
-        waiting[uid] = {"step": "add_balance_amt", "target": target}
-        name = users_db.get(target,{}).get("name","?")
-        b    = float(wallets.get(target, 0))
-        bot.send_message(uid,
-            f"💸 <b>បន្ថែម Balance</b>\n👤 <b>{name}</b> <code>{target}</code>\n"
-            f"💳 សាច់ប្រាក់: <b>${b:.2f}</b>\n━━━━━━━━━━━━━━━━━━\nផ្ញើ Amount $:",
-            parse_mode="HTML", reply_markup=cancel_kb())
-
-    elif action == "dedbal":
-        waiting[uid] = {"step": "deduct_balance_amt", "target": target}
-        name = users_db.get(target,{}).get("name","?")
-        b    = float(wallets.get(target, 0))
-        bot.send_message(uid,
-            f"💔 <b>កាត់ Balance</b>\n👤 <b>{name}</b> <code>{target}</code>\n"
-            f"💳 សាច់ប្រាក់: <b>${b:.2f}</b>\n━━━━━━━━━━━━━━━━━━\nផ្ញើ Amount $ ដក:",
-            parse_mode="HTML", reply_markup=cancel_kb())
-
-@bot.callback_query_handler(func=lambda c: c.data.startswith("adminpromo:"))
-def cb_adminpromo(call):
-    uid = call.message.chat.id
-    if uid != ADMIN_ID: bot.answer_callback_query(call.id); return
-    bot.answer_callback_query(call.id)
-    action = call.data.split(":")[1]
-    if action == "add":
-        waiting[uid] = "promo_add_code"
-        bot.send_message(uid,
-            "🎟️ <b>បន្ថែម Promo Code</b>\n"
-            "━━━━━━━━━━━━━━━━━━\n"
-            "ផ្ញើ: <code>CODE DISCOUNT TYPE USES</code>\n"
-            "Type: <b>pct</b> (%) ឬ <b>fix</b> ($)\n"
-            "ឧ: <code>SAVE50 50 pct 100</code>",
-            parse_mode="HTML", reply_markup=cancel_kb())
-    elif action == "list":
-        _show_promos(uid)
-    elif action.startswith("del_"):
-        code = action[4:]
-        promos.pop(code.upper(), None)
-        _save(PROMO_FILE, promos)
-        try:
-            bot.edit_message_text(f"🗑️ Promo <b>{code}</b> លុបហើយ!",
-                                  chat_id=uid, message_id=call.message.message_id, parse_mode="HTML")
-        except: pass
-
-def _show_promos(uid):
-    if not promos:
-        bot.send_message(uid, "❌ គ្មាន Promo Code ទេ", reply_markup=admin_kb()); return
-    lines = ["🎟️ <b>Promo Codes</b>\n━━━━━━━━━━━━━━━━━━"]
-    btns  = []
-    for code, p in promos.items():
-        dtype = f"{p['discount']}%" if p.get("pct") else f"${p['discount']}"
-        uses  = f"{p.get('used',0)}/{p.get('uses',0)}"
-        lines.append(f"• <code>{code}</code> — <b>{dtype}</b> | {uses} ប្រើ")
-        btns.append([InlineKeyboardButton(f"🗑 {code}", callback_data=f"adminpromo:del_{code}")])
-    btns.append([InlineKeyboardButton("➕ Add Promo", callback_data="adminpromo:add")])
-    bot.send_message(uid, "\n".join(lines), parse_mode="HTML",
-                     reply_markup=InlineKeyboardMarkup(btns))
-
-# ═══════════════════════════════════════════════════════════
-#  MAIN MESSAGE HANDLER
-# ═══════════════════════════════════════════════════════════
-@bot.message_handler(func=lambda m: True)
-def handle(message):
-    uid     = message.chat.id
-    uid_str = str(uid)
-    text    = message.text.strip() if message.text else ""
-    step    = waiting.get(uid)
-    lang    = get_lang(uid)
-
-    _track_user(message)
-    if is_banned(uid) and uid != ADMIN_ID:
-        bot.send_message(uid, t(uid, "banned")); return
-
-    if text in ("✕ Cancel", "❌ Cancel", "❌ បោះបង់"):
-        waiting.pop(uid, None)
-        livechat_users.discard(uid)
-        kb = admin_kb() if uid == ADMIN_ID else main_kb(uid)
-        bot.send_message(uid, t(uid, "cancel_ok"), reply_markup=kb); return
-
-    # ══════════════════════════════════════════════════════
-    #  ADMIN SECTION
-    # ══════════════════════════════════════════════════════
-    if uid == ADMIN_ID:
-
-        if text == "🔥 បញ្ចុះតម្លៃទាំងអស់":
-            waiting[uid] = "admin_set_discount"
-            status_txt = "🟢 កំពុងបើក" if discount_config.get("active") else "🔴 កំពុងបិទ"
-            cur_pct = discount_config.get("pct", 0)
-            bot.send_message(uid,
-                f"🔥 <b>គ្រប់គ្រងការបញ្ចុះតម្លៃសេវាកម្មទាំងអស់</b>\n"
-                f"━━━━━━━━━━━━━━━━━━\n"
-                f"ស្ថានភាព: <b>{status_txt}</b>\n"
-                f"អភាគរយបញ្ចុះ: <b>{cur_pct}%</b>\n"
-                f"━━━━━━━━━━━━━━━━━━\n"
-                f"ផ្ញើទម្រង់ជា: <code>ON 20</code> (ដើម្បីបើកនិងកំណត់ 20%) ឬ <code>OFF</code> (ដើម្បីបិទ)",
-                parse_mode="HTML", reply_markup=cancel_kb())
-            return
-
-        if step == "admin_set_discount":
-            parts = text.strip().split()
-            cmd = parts[0].upper()
-            if cmd == "OFF":
-                discount_config["active"] = False
-                discount_config["pct"] = 0
-                _save(DISCOUNT_FILE, discount_config)
-                waiting.pop(uid, None)
-                bot.send_message(uid, "✅ បាន **បិទ** ការបញ្ចុះតម្លៃទាំងអស់រួចរាល់!", parse_mode="HTML", reply_markup=admin_kb())
-                return
-            elif cmd == "ON" and len(parts) >= 2:
-                try:
-                    pct = float(parts[1])
-                    discount_config["active"] = True
-                    discount_config["pct"] = pct
-                    _save(DISCOUNT_FILE, discount_config)
-                    waiting.pop(uid, None)
-                    bot.send_message(uid, f"✅ បាន **បើក** ការបញ្ចុះតម្លៃ **{pct}%** លើរាល់សេវាកម្មទាំងអស់!", parse_mode="HTML", reply_markup=admin_kb())
-                    return
-                except ValueError:
-                    pass
-            bot.send_message(uid, "❌ ទម្រង់មិនត្រឹមត្រូវ! ប្រើឧទាហរណ៍: <code>ON 15</code> ឬ <code>OFF</code>", parse_mode="HTML")
-            return
-
-        if text == "➕ បន្ថែមផលិតផលថ្មី":
-            kb_add_all = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🛍️ បន្ថែមផលិតផលឌីជីថល", callback_data="admaddall:digital")],
-            ])
-            bot.send_message(uid,
-                "➕ <b>ជ្រើសរើសប្រភេទផលិតផលដែលចង់បន្ថែម៖</b>\n━━━━━━━━━━━━━━━━━━",
-                parse_mode="HTML", reply_markup=kb_add_all)
-            return
-
-        if text.startswith("/addbal"):
-            parts = text.split()
-            if len(parts) < 3:
-                bot.send_message(uid, "ប្រើ: /addbal UID AMOUNT"); return
             try:
-                target = parts[1]; amt = float(parts[2])
-                add_bal(int(target), amt)
-                bot.send_message(uid,
-                    f"✅ +${amt:.2f} → <code>{target}</code>\n💳 Balance: <b>${bal(int(target)):.2f}</b>",
-                    parse_mode="HTML", reply_markup=admin_kb())
-                try: bot.send_message(int(target),
-                    f"✅ <b>Admin បន្ថែមលុយ!</b>\n💰 +${amt:.2f} | សាច់ប្រាក់: <b>${bal(int(target)):.2f}</b>",
-                    parse_mode="HTML")
-                except: pass
-            except: bot.send_message(uid, "❌ Format ខុស")
-            return
-
-        if text.startswith("/deductbal"):
-            parts = text.split()
-            if len(parts) < 3:
-                bot.send_message(uid, "ប្រើ: /deductbal UID AMOUNT"); return
-            try:
-                target = parts[1]; amt = float(parts[2])
-                cur = bal(int(target))
-                ded = min(amt, cur)
-                ded_bal(int(target), ded)
-                bot.send_message(uid,
-                    f"✅ -${ded:.2f} → <code>{target}</code>\n💳 សាច់ប្រាក់: <b>${bal(int(target)):.2f}</b>",
-                    parse_mode="HTML", reply_markup=admin_kb())
-            except: bot.send_message(uid, "❌ Format ខុស")
-            return
-
-        if isinstance(step, dict) and step.get("step") == "add_balance_amt":
-            target = step["target"]
-            try:
-                amt = float(text.replace("$",""))
-                add_bal(int(target), amt)
-                _save(WALLETS_FILE, wallets)
-                waiting.pop(uid, None)
-                bot.send_message(uid,
-                    f"✅ <b>បន្ថែម Balance</b>\n👤 <code>{target}</code>\n"
-                    f"💰 +${amt:.2f} | សាច់ប្រាក់: <b>${bal(int(target)):.2f}</b>",
-                    parse_mode="HTML", reply_markup=admin_kb())
-                try: bot.send_message(int(target),
-                    f"✅ <b>Admin បន្ថែមលុយ!</b>\n💰 +${amt:.2f} | សាច់ប្រាក់: <b>${bal(int(target)):.2f}</b>",
-                    parse_mode="HTML")
-                except: pass
-            except: bot.send_message(uid, "❌ Amount ខុស! ឧ: <code>5.00</code>", parse_mode="HTML")
-            return
-
-        if isinstance(step, dict) and step.get("step") == "deduct_balance_amt":
-            target = step["target"]
-            try:
-                amt  = float(text.replace("$",""))
-                cur  = bal(int(target))
-                ded  = min(amt, cur)
-                ded_bal(int(target), ded)
-                waiting.pop(uid, None)
-                bot.send_message(uid,
-                    f"✅ <b>កាត់ Balance</b>\n👤 <code>{target}</code>\n"
-                    f"💔 -${ded:.2f} | សាច់ប្រាក់: <b>${bal(int(target)):.2f}</b>",
-                    parse_mode="HTML", reply_markup=admin_kb())
-                try: bot.send_message(int(target),
-                    f"⚠️ <b>Admin កាត់លុយ!</b>\n💔 -${ded:.2f} | សាច់ប្រាក់: <b>${bal(int(target)):.2f}</b>",
-                    parse_mode="HTML")
-                except: pass
-            except: bot.send_message(uid, "❌ Amount ខុស!")
-            return
-
-        if step == "promo_add_code":
-            parts = text.strip().split()
-            if len(parts) < 4:
-                bot.send_message(uid,
-                    "❌ Format ខុស!\nឧ: <code>SAVE50 50 pct 100</code>", parse_mode="HTML"); return
-            code = parts[0].upper()
-            try:
-                discount = float(parts[1])
-                pct  = (parts[2].lower() == "pct")
-                uses = int(parts[3])
-            except:
-                bot.send_message(uid, "❌ Format ខុស!", parse_mode="HTML"); return
-            promos[code] = {"discount": discount, "pct": pct, "uses": uses, "used": 0}
-            _save(PROMO_FILE, promos)
-            waiting.pop(uid, None)
-            dtype = f"{discount:.0f}%" if pct else f"${discount:.2f}"
-            bot.send_message(uid,
-                f"✅ <b>Promo Code Created!</b>\n"
-                f"🎟️ <code>{code}</code> — <b>{dtype}</b> | {uses} uses",
-                parse_mode="HTML", reply_markup=admin_kb()); return
-
-        if step == "broadcast_msg":
-            _do_broadcast(uid, message); return
-
-        if isinstance(step, dict) and step.get("step") == "add_stock_items":
-            pid      = step["pid"]
-            plan_idx = step.get("plan_idx")
-            lines = [l.strip() for l in text.strip().split("\n") if l.strip()]
-            if not lines:
-                bot.send_message(uid, "❌ គ្មានទិន្នន័យ"); return
-            key = _stock_key(pid, plan_idx)
-            if key not in stock: stock[key] = []
-            for line in lines:
-                stock[key].append({"data": line, "ts": int(time.time())})
-            _save(STOCK_FILE, stock)
-            waiting.pop(uid, None)
-            p = _get_product(pid)
-            plan_label = ""
-            if plan_idx is not None and p:
-                plans = p.get("plans", [])
-                if plan_idx < len(plans):
-                    plan_label = f" — {plans[plan_idx]['label']}"
-            bot.send_message(uid,
-                f"✅ បន្ថែម <b>{len(lines)}</b> accounts ទៅ <code>{pid}</code>{plan_label}\n"
-                f"📦 Total: <b>{len(stock[key])}</b>",
-                parse_mode="HTML", reply_markup=admin_kb()); return
-
-        if isinstance(step, dict) and step.get("step") == "edit_price_val":
-            pid      = step["pid"]
-            plan_idx = step["plan_idx"]
-            p        = _get_product(pid)
-            if not p:
-                waiting.pop(uid, None); bot.send_message(uid, "❌ Product រកមិនឃើញ", reply_markup=admin_kb()); return
-            try:
-                new_price = round(float(text.replace("$","")), 2)
-                if new_price < 0: raise ValueError
-            except:
-                bot.send_message(uid, "❌ តម្លៃខុស! ឧ: <code>2.50</code>", parse_mode="HTML"); return
-            old_price = p["plans"][plan_idx]["price"]
-            p["plans"][plan_idx]["price"] = new_price
-            _save(PRODUCTS_FILE, products)
-            waiting.pop(uid, None)
-            bot.send_message(uid,
-                f"✅ <b>តម្លៃបានកែ!</b>\n"
-                f"📦 {p.get('icon','')} <b>{p['name']}</b> — {p['plans'][plan_idx]['label']}\n"
-                f"💰 ${old_price:.2f} → <b>${new_price:.2f}</b>",
-                parse_mode="HTML", reply_markup=admin_kb()); return
-
-        if isinstance(step, dict) and step.get("step") == "edit_label_val":
-            pid      = step["pid"]
-            plan_idx = step["plan_idx"]
-            p        = _get_product(pid)
-            if not p:
-                waiting.pop(uid, None); bot.send_message(uid, "❌ Product រកមិនឃើញ", reply_markup=admin_kb()); return
-            new_label = text.strip()
-            if not new_label:
-                bot.send_message(uid, "❌ ឈ្មោះ Plan មិនអាចទទេ!"); return
-            old_label = p["plans"][plan_idx]["label"]
-            p["plans"][plan_idx]["label"] = new_label
-            _save(PRODUCTS_FILE, products)
-            waiting.pop(uid, None)
-            bot.send_message(uid,
-                f"✅ <b>ឈ្មោះ Plan បានកែ!</b>\n"
-                f"📦 {p.get('icon','')} <b>{p['name']}</b>\n"
-                f"🏷️ <b>{old_label}</b> → <b>{new_label}</b>",
-                parse_mode="HTML", reply_markup=admin_kb()); return
-
-        if isinstance(step, dict) and step.get("step") == "edit_price_newplan_label":
-            pid   = step["pid"]
-            label = text.strip()
-            if not label:
-                bot.send_message(uid, "❌ ឈ្មោះ Plan មិនអាចទទេ!"); return
-            waiting[uid] = {"step": "edit_price_newplan_price", "pid": pid, "label": label}
-            bot.send_message(uid,
-                f"💰 Plan: <b>{label}</b>\nផ្ញើ <b>តម្លៃ</b> (USD):\n<i>ឧ: <code>2.50</code></i>",
-                parse_mode="HTML", reply_markup=cancel_kb()); return
-
-        if isinstance(step, dict) and step.get("step") == "edit_price_newplan_price":
-            pid   = step["pid"]
-            label = step["label"]
-            p     = _get_product(pid)
-            if not p:
-                waiting.pop(uid, None); bot.send_message(uid, "❌ Product រកមិនឃើញ", reply_markup=admin_kb()); return
-            try:
-                price = round(float(text.replace("$","")), 2)
-                if price < 0: raise ValueError
-            except:
-                bot.send_message(uid, "❌ តម្លៃខុស! ឧ: <code>2.50</code>", parse_mode="HTML"); return
-            p["plans"].append({"label": label, "price": price})
-            _save(PRODUCTS_FILE, products)
-            waiting.pop(uid, None)
-            bot.send_message(uid,
-                f"✅ <b>Plan ថ្មីបានបន្ថែម!</b>\n"
-                f"📦 {p.get('icon','')} <b>{p['name']}</b>\n"
-                f"🏷️ <b>{label}</b> — ${price:.2f}",
-                parse_mode="HTML", reply_markup=admin_kb()); return
-
-        if step == "add_product_name":
-            waiting[uid] = {"step": "add_product_icon", "name": text}
-            bot.send_message(uid, f"<b>{text}</b>\nផ្ញើ Icon emoji (ឧ: ✂️ ឬ 💎):", parse_mode="HTML"); return
-
-        if isinstance(step, dict) and step.get("step") == "add_product_icon":
-            waiting[uid] = {"step": "add_product_desc", "name": step["name"], "icon": text}
-            bot.send_message(uid, "ផ្ញើ Description:"); return
-
-        if isinstance(step, dict) and step.get("step") == "add_product_desc":
-            pid = step["name"].lower().replace(" ","_")
-            products.append({"id": pid, "name": step["name"], "icon": step["icon"],
-                             "desc": text, "plans": []})
-            _save(PRODUCTS_FILE, products)
-            waiting.pop(uid, None)
-            bot.send_message(uid,
-                f"✅ Product <b>{step['name']}</b> បង្កើតបានរួច!\n"
-                "ប្រើ ✏️ កែតម្លៃ ដើម្បីបន្ថែម plans.",
-                parse_mode="HTML", reply_markup=admin_kb()); return
-
-        if text == "🛍️ ផលិតផល":
-            if not products:
-                bot.send_message(uid, "❌ គ្មានផលិតផល", reply_markup=admin_kb()); return
-            for p in products:
-                plans = p.get("plans", [])
-                plans_txt = ""
-                for i, pl in enumerate(plans):
-                    cnt = _get_plan_stock_count(p["id"], i)
-                    oos = " ❌ អស់" if cnt == 0 else ""
-                    stock_label = f"ស្តុក: <b>{cnt}</b>"
-                    plans_txt += f"  • {pl['label']} — <b>${pl['price']:.2f}</b> │ {stock_label}{oos}\n"
-                if not plans_txt: plans_txt = "  (គ្មាន plan)\n"
-                kb = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("📦 មើលស្តុក",      callback_data=f"admprod:stock:{p['id']}"),
-                     InlineKeyboardButton("🗑️ លុបស្តុក",      callback_data=f"admprod:clrstock:{p['id']}")],
-                    [InlineKeyboardButton("❌ លុបផលិតផល",     callback_data=f"admprod:del:{p['id']}")],
-                ])
-                bot.send_message(uid,
-                    f"{p.get('icon','📦')} <b>{p['name']}</b>\n"
-                    f"━━━━━━━━━━━━━━━━━━\n"
-                    f"🆔 ID: <code>{p['id']}</code>\n"
-                    f"💰 Plans & ស្តុក:\n{plans_txt}",
-                    parse_mode="HTML", reply_markup=kb)
-            return
-
-        if text == "📦 ការបញ្ជាទិញ":
-            if not orders:
-                bot.send_message(uid, "❌ គ្មានការបញ្ជាទិញ", reply_markup=admin_kb()); return
-            lines = ["<b>📦 ការបញ្ជាទិញ (20 ចុងក្រោយ)</b>\n━━━━━━━━━━━━━━━━━━"]
-            for oid, o in list(orders.items())[-20:]:
-                lines.append(f"🆔 <code>{oid}</code> | 👤 <code>{o['uid']}</code> | {o.get('prod_name','?')} — {o.get('plan','?')} | ${o.get('price',0):.2f}")
-            bot.send_message(uid, "\n".join(lines)[:4000], parse_mode="HTML", reply_markup=admin_kb()); return
-
-        if text == "💰 កាបូបលុយ":
-            lines = ["<b>💰 កាបូបលុយអ្នកប្រើ</b>\n━━━━━━━━━━━━━━━━━━"]
-            for u_id, u_info in sorted(users_db.items(), key=lambda x: x[1].get("last",0), reverse=True)[:30]:
-                b = wallets.get(u_id, 0)
-                name = u_info.get("name","?")
-                lines.append(f"👤 <b>{name}</b> <code>{u_id}</code> — <b>${float(b):.2f}</b>")
-            bot.send_message(uid, "\n".join(lines)[:4000], parse_mode="HTML", reply_markup=admin_kb()); return
-
-        if text == "📊 ស្ថិតិ":
-            total_orders = len(orders)
-            total_users  = len(users_db)
-            total_rev    = sum(float(o.get("price",0)) for o in orders.values())
-            bot.send_message(uid,
-                f"📊 <b>ស្ថិតិ</b>\n"
-                f"━━━━━━━━━━━━━━━━━━\n"
-                f"👥 អ្នកប្រើ: <b>{total_users}</b>\n"
-                f"📦 ការបញ្ជាសរុប: <b>{total_orders}</b>\n"
-                f"💰 ចំណូលសរុប: <b>${total_rev:.2f}</b>\n"
-                f"🎟️ Promo សកម្ម: <b>{len(promos)}</b>",
-                parse_mode="HTML", reply_markup=admin_kb()); return
-
-        if text == "👥 អ្នកប្រើប្រាស់":
-            users_sorted = sorted(users_db.items(), key=lambda x: x[1].get("last",0), reverse=True)[:20]
-            if not users_sorted:
-                bot.send_message(uid, "❌ គ្មានអ្នកប្រើ", reply_markup=admin_kb()); return
-            for u_id, u_info in users_sorted:
-                b    = float(wallets.get(u_id, 0))
-                name = u_info.get("name","?") or "?"
-                uname= f"@{u_info['username']}" if u_info.get("username") else ""
-                banned = u_info.get("banned", False)
-                ban_label = "🔓 លែង Ban" if banned else "🚫 Ban"
-                ban_cb    = f"useraction:unban:{u_id}" if banned else f"useraction:ban:{u_id}"
-                status = " 🚫 BANNED" if banned else ""
-                kb = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("💸 បន្ថែមប្រាក់",  callback_data=f"useraction:addbal:{u_id}"),
-                     InlineKeyboardButton("💔 កាត់ប្រាក់",    callback_data=f"useraction:dedbal:{u_id}")],
-                    [InlineKeyboardButton(ban_label,           callback_data=ban_cb)],
-                ])
-                bot.send_message(uid,
-                    f"👤 <b>{name}</b>{status}\n"
-                    f"🆔 <code>{u_id}</code>  {uname}\n"
-                    f"💳 Balance: <b>${b:.2f}</b>",
-                    parse_mode="HTML", reply_markup=kb)
-            return
-
-        if text == "💳 ប្រាក់បញ្ញើ":
-            pend = [(k, v) for k, v in store_deps.items() if v.get("status") == "pending"]
-            if not pend:
-                bot.send_message(uid, "✅ គ្មានការដាក់លុយ pending", reply_markup=admin_kb()); return
-            lines = ["<b>💳 ប្រាក់បញ្ញើ រង់ចាំ</b>\n━━━━━━━━━━━━━━━━━━"]
-            for k, v in pend:
-                lines.append(f"👤 <code>{v.get('uid','?')}</code> | ${v.get('amount',0):.2f}\n  /addbal {v.get('uid','?')} {v.get('amount',0):.2f}")
-            bot.send_message(uid, "\n".join(lines)[:4000], parse_mode="HTML", reply_markup=admin_kb()); return
-
-        if text == "📦 ស្តុក":
-            lines = ["<b>📦 ទិដ្ឋភាពស្តុក</b>\n━━━━━━━━━━━━━━━━━━"]
-            for p in products:
-                plans = p.get("plans", [])
-                lines.append(f"\n{p.get('icon','')} <b>{p['name']}</b>")
-                if plans:
-                    for i, pl in enumerate(plans):
-                        cnt   = _get_plan_stock_count(p["id"], i)
-                        alert = " ⚠️" if 0 < cnt <= STOCK_ALERT_MIN else ""
-                        oos   = " ❌ អស់" if cnt == 0 else ""
-                        lines.append(f"  • {pl['label']} — <b>{cnt}</b>{alert}{oos}")
-                else:
-                    cnt = len(_get_stock(p["id"]))
-                    alert = " ⚠️" if 0 < cnt <= STOCK_ALERT_MIN else ""
-                    oos   = " ❌ អស់" if cnt == 0 else ""
-                    lines.append(f"  (no plan) — <b>{cnt}</b>{alert}{oos}")
-            bot.send_message(uid, "\n".join(lines), parse_mode="HTML", reply_markup=admin_kb()); return
-
-        if text == "➕ បន្ថែមស្តុក":
-            if not products:
-                bot.send_message(uid, "❌ បង្កើតផលិតផលជាមុនសិន", reply_markup=admin_kb()); return
-            btns = []
-            for p in products:
-                btns.append([InlineKeyboardButton(
-                    f"{p.get('icon','📦')} {p['name']}", callback_data=f"addstock_prod:{p['id']}")])
-            if not btns:
-                bot.send_message(uid, "❌ គ្មានផលិតផលដែលត្រូវការស្តុកទេ។", reply_markup=admin_kb()); return
-            bot.send_message(uid,
-                "➕ <b>បន្ថែមស្តុក</b>\n━━━━━━━━━━━━━━━━━━\nជ្រើសផលិតផល:",
-                parse_mode="HTML",
-                reply_markup=InlineKeyboardMarkup(btns)); return
-
-        if text == "➕ បន្ថែមផលិតផល":
-            waiting[uid] = "add_product_name"
-            bot.send_message(uid, "➕ <b>ឈ្មោះផលិតផល:</b>", parse_mode="HTML", reply_markup=cancel_kb()); return
-
-        if text == "✏️ កែតម្លៃ":
-            if not products:
-                bot.send_message(uid, "❌ គ្មានផលិតផល", reply_markup=admin_kb()); return
-            btns = []
-            for p in products:
-                btns.append([InlineKeyboardButton(
-                    f"{p.get('icon','📦')} {p['name']}", callback_data=f"editprice_prod:{p['id']}")])
-            bot.send_message(uid,
-                "✏️ <b>កែតម្លៃ / Plan</b>\n━━━━━━━━━━━━━━━━━━\nជ្រើសផលិតផល:",
-                parse_mode="HTML", reply_markup=InlineKeyboardMarkup(btns)); return
-
-        if text == "💸 បន្ថែមប្រាក់":
-            users_sorted = sorted(users_db.items(), key=lambda x: x[1].get("last",0), reverse=True)[:15]
-            btns = []
-            for u_id, u_info in users_sorted:
-                b    = float(wallets.get(u_id, 0))
-                name = (u_info.get("name") or "?")[:18]
-                btns.append([InlineKeyboardButton(
-                    f"👤 {name}  ${b:.2f}", callback_data=f"useraction:addbal:{u_id}")])
-            bot.send_message(uid,
-                "💸 <b>បន្ថែមប្រាក់</b>\n━━━━━━━━━━━━━━━━━━\nជ្រើសអ្នកប្រើ:",
-                parse_mode="HTML", reply_markup=InlineKeyboardMarkup(btns)); return
-
-        if text == "💔 កាត់ប្រាក់":
-            users_sorted = sorted(users_db.items(), key=lambda x: x[1].get("last",0), reverse=True)[:15]
-            btns = []
-            for u_id, u_info in users_sorted:
-                b    = float(wallets.get(u_id, 0))
-                name = (u_info.get("name") or "?")[:18]
-                btns.append([InlineKeyboardButton(
-                    f"👤 {name}  ${b:.2f}", callback_data=f"useraction:dedbal:{u_id}")])
-            bot.send_message(uid,
-                "💔 <b>កាត់ប្រាក់</b>\n━━━━━━━━━━━━━━━━━━\nជ្រើសអ្នកប្រើ:",
-                parse_mode="HTML", reply_markup=InlineKeyboardMarkup(btns)); return
-
-        if text == "📢 ផ្សព្វផ្សាយ":
-            waiting[uid] = "broadcast_msg"
-            bot.send_message(uid,
-                "📢 <b>ផ្សព្វផ្សាយ</b>\nផ្ញើ Message (text/photo/video):",
-                parse_mode="HTML", reply_markup=cancel_kb()); return
-
-        if text == "🔄 ធ្វើឱ្យទាន់សម័យ":
-            bot.send_message(uid, "✅ បានធ្វើឱ្យទាន់សម័យ!", reply_markup=admin_kb()); return
-
-        if text.startswith("━━━"):
-            bot.send_message(uid, "👇 ជ្រើស menu ខាងក្រោម:", reply_markup=admin_kb()); return
-
-        bot.send_message(uid, f"❓ ពាក្យបញ្ជាមិនស្គាល់។ ប្រើប៊ូតុង Menu ខាងក្រោម។", reply_markup=admin_kb()); return
-
-    # ══════════════════════════════════════════════════════
-    #  USER SECTION
-    # ══════════════════════════════════════════════════════
-
-    if isinstance(step, dict) and step.get("step") == "dep_custom":
-        try:
-            amount = float(text.replace("$",""))
-            if amount < 0.5: raise ValueError
-            waiting.pop(uid, None)
-            _send_deposit_qr(uid, amount, label=f"💳 <b>{'ដាក់ប្រាក់' if lang=='kh' else 'Top Up'}</b>")
-        except:
-            bot.send_message(uid, "❌ ចំនួនខុស! ឧ: <code>5.00</code>", parse_mode="HTML")
-        return
-
-    if step == "dep_custom":
-        try:
-            amount = float(text.replace("$",""))
-            if amount < 0.5: raise ValueError
-            waiting.pop(uid, None)
-            _send_deposit_qr(uid, amount, label=f"💳 <b>{'ដាក់ប្រាក់' if lang=='kh' else 'Top Up'}</b>")
-        except:
-            bot.send_message(uid, "❌ ចំនួនខុស! ឧ: <code>5.00</code>", parse_mode="HTML")
-        return
-
-    if isinstance(step, dict) and step.get("step") == "order_qty":
-        prod_id  = step["prod_id"]
-        plan_idx = step["plan_idx"]
-        unit_price = step["price"]
-        try:
-            qty = int(text.strip())
-            if qty <= 0: raise ValueError
-        except:
-            bot.send_message(uid, "❌ ចំនួនខុស! សូមបញ្ចូលលេខតែមួយ:", reply_markup=cancel_kb()); return
-        waiting.pop(uid, None)
-        p = _get_product(prod_id)
-        if not p:
-            bot.send_message(uid, "❌ Product រកមិនឃើញ", reply_markup=main_kb(uid)); return
-        plan = p.get('plans', [])[plan_idx]
-        stock_cnt = _get_plan_stock_count(prod_id, plan_idx)
-        if stock_cnt < qty:
-            bot.send_message(uid, f"❌ Stock មិនគ្រប់! មាន: <b>{stock_cnt}</b>", parse_mode="HTML", reply_markup=main_kb(uid)); return
-        final_price = round(float(unit_price) * qty, 2)
-        if bal(uid) < final_price:
-            bot.send_message(uid,
-                f"❌ Balance មិនគ្រប់!\n💳 Balance: <b>${bal(uid):.2f}</b>\n"
-                f"🛒 Need: <b>${final_price:.2f}</b>",
-                parse_mode="HTML", reply_markup=main_kb(uid)); return
-        orig_price = plan.get("price")
-        orig_qty = plan.get("qty", None)
-        plan["price"] = final_price
-        plan["qty"] = qty
-        oid, err = _place_store_order(uid, prod_id, plan_idx)
-        plan["price"] = orig_price
-        if orig_qty is None:
-            plan.pop("qty", None)
-        else:
-            plan["qty"] = orig_qty
-        if err:
-            bot.send_message(uid, err, reply_markup=main_kb(uid)); return
-        o = orders[oid]
-        items = o.get("items", [])
-        deliver_txt = (
-            f"✅ <b>បញ្ជាទិញបានជោគជ័យ!</b>\n"
-            f"━━━━━━━━━━━━━━━━━━\n"
-            f"🆔 <code>{oid}</code>\n"
-            f"📦 {p['name']} — {plan['label']}\n"
-            f"🔢 ចំនួន: <b>{qty}</b> | 💰 បានបង់: <b>${final_price:.2f}</b>"
-        )
-        deliver_txt += f"\n💳 សាច់ប្រាក់: <b>${bal(uid):.2f}</b>\n━━━━━━━━━━━━━━━━━━\n"
-        for item in items:
-            if isinstance(item, dict):
-                if "data" in item: deliver_txt += f"<code>{item['data']}</code>\n"
-                else:
-                    for k, v in item.items(): deliver_txt += f"<b>{k}</b>: <code>{v}</code>\n"
-            else:
-                deliver_txt += f"<code>{item}</code>\n"
-        bot.send_message(uid, deliver_txt, parse_mode="HTML", reply_markup=main_kb(uid))
-        try: bot.send_message(ADMIN_ID,
-            f"🛒 <b>New Order</b>\n👤 <code>{str(uid)}</code>\n"
-            f"📦 {p['name']} | {qty} | ${final_price:.2f}", parse_mode="HTML")
-        except: pass
-        return
-
-    if text in ("🛍️ Shop", "🛍️ ហាងឌីជីថល", "🛍️ ហាង"):
-        livechat_users.discard(uid)
-        if not products:
-            bot.send_message(uid, "❌ <b>ហាងកំពុងរៀបចំ</b>\n\nអែតមីនមិនទាន់បានដាក់បញ្ចូលផលិតផល ឬសេវាកម្មណាមួយឡើយ។ សូមអត់ធ្មត់រង់ចាំបន្តិច!", parse_mode="HTML", reply_markup=main_kb(uid))
-        else:
-            bot.send_message(uid, "🛍️ <b>ហាង</b>\n━━━━━━━━━━━━━━━━━━", parse_mode="HTML", reply_markup=products_kb())
-        return
-
-    if text in ("💳 ដាក់ប្រាក់", "💰 ដាក់ប្រាក់", "💰 Top Up", "💳 Top Up", "💸 បញ្ចូលលុយ"):
-        livechat_users.discard(uid)
-        b = bal(uid)
-        waiting.pop(uid, None)
-        bot.send_message(uid,
-            f"💸 <b>{'ដាក់លុយ' if lang=='kh' else 'Top Up Wallet'}</b>\n"
-            f"━━━━━━━━━━━━━━━━━━\n"
-            f"💳 សាច់ប្រាក់: <b>${b:.2f}</b>\n"
-            f"━━━━━━━━━━━━━━━━━━\n"
-            f"{'ជ្រើស ចំនួន:' if lang=='kh' else 'Choose Amount:'}",
-            parse_mode="HTML",
-            reply_markup=deposit_amt_kb(uid)); return
-
-    if text in ("📦 បញ្ជាទិញ", "📦 ការបញ្ជាទិញ", "📦 Orders"):
-        livechat_users.discard(uid)
-        my_orders = {oid: o for oid, o in orders.items() if o.get("uid") == uid_str}
-        if not my_orders:
-            bot.send_message(uid,
-                "📦 <b>បញ្ជាទិញ</b>\n\n❌ គ្មាន Order ទេ!",
-                parse_mode="HTML", reply_markup=main_kb(uid)); return
-        lines = [f"📦 <b>បញ្ជាទិញ</b>\n━━━━━━━━━━━━━━━━━━"]
-        for oid, o in sorted(my_orders.items(), key=lambda x: x[1].get("ts",0), reverse=True)[:10]:
-            lines.append(f"🛍️ <code>{oid}</code> — {o['prod_name']} | ${o.get('price',0):.2f}")
-        bot.send_message(uid, "\n".join(lines), parse_mode="HTML", reply_markup=main_kb(uid)); return
-
-    if text in ("💬 ជំនួយ Support", "💬 Support"):
-        livechat_users.discard(uid)
-        bot.send_message(uid, t(uid, "support_msg"), parse_mode="HTML", reply_markup=main_kb(uid)); return
-
-    if text in ("👜 កាបូបលុយ", "👜 Wallet"):
-        livechat_users.discard(uid)
-        b = bal(uid)
-        bot.send_message(uid,
-            f"👜 <b>{'កាបូបលុយ' if lang=='kh' else 'My Wallet'}</b>\n"
-            f"━━━━━━━━━━━━━━━━━━\n"
-            f"💳 សាច់ប្រាក់: <b>${b:.2f}</b>\n"
-            f"━━━━━━━━━━━━━━━━━━\n"
-            f"ចុច 💳 {'ដាក់ប្រាក់' if lang=='kh' else 'Top Up'} ដើម្បីដាក់លុយ",
-            parse_mode="HTML", reply_markup=main_kb(uid)); return
-
-    if text in ("💡 របៀបប្រើប្រាស់", "💡 How to Use", "💡 របៀបប្រើ"):
-        livechat_users.discard(uid)
-        bot.send_message(uid, t(uid, "how_to_use"), parse_mode="HTML", reply_markup=main_kb(uid)); return
-
-    if text in ("🌐 ភូមិភាសា / Language", "🌐 ភាសា / Language", "🌐 Language"):
-        livechat_users.discard(uid)
-        bot.send_message(uid, t(uid, "select_lang"),
-                         parse_mode="HTML", reply_markup=lang_select_kb()); return
-
-    bot.send_message(uid, t(uid, "fallback"), reply_markup=main_kb(uid))
-
-# ═══════════════════════════════════════════════════════════
-#  BROADCAST
-# ═══════════════════════════════════════════════════════════
-def _do_broadcast(admin_uid, message):
-    waiting.pop(admin_uid, None)
-    sent = failed = 0
-    
-    broadcast_kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🛒 ទិញឥឡូវ", callback_data="back:shop")]
-    ])
-    
-    for u_id in list(users_db.keys()):
-        try:
-            if message.photo:
-                bot.send_photo(
-                    int(u_id), 
-                    message.photo[-1].file_id, 
-                    caption=message.caption or "", 
-                    parse_mode="HTML", 
-                    reply_markup=broadcast_kb
-                )
-            elif message.video:
-                bot.send_video(
-                    int(u_id), 
-                    message.video.file_id, 
-                    caption=message.caption or "", 
-                    parse_mode="HTML", 
-                    reply_markup=broadcast_kb
-                )
-            else:
-                bot.send_message(
-                    int(u_id), 
-                    message.text or "", 
-                    parse_mode="HTML", 
-                    reply_markup=broadcast_kb
-                )
-            sent += 1
-        except: 
-            failed += 1
-        time.sleep(0.05)
-        
-    bot.send_message(
-        admin_uid,
-        f"📢 <b>ផ្សព្វផ្សាយរួចរាល់!</b>\n✅ បានផ្ញើ: {sent} | ❌ បរាជ័យ: {failed}",
-        parse_mode="HTML", 
-        reply_markup=admin_kb()
-    )
-
-# ═══════════════════════════════════════════════════════════
-#  PHOTO HANDLER
-# ═══════════════════════════════════════════════════════════
-@bot.message_handler(content_types=["photo"])
-def handle_photo(message):
-    uid = message.chat.id
-    if uid == ADMIN_ID and waiting.get(uid) == "broadcast_msg":
-        _do_broadcast(uid, message); return
-
-# ═══════════════════════════════════════════════════════════
-#  FLASK CONTROL SERVER
-# ═══════════════════════════════════════════════════════════
-flask_app = Flask(__name__)
-CONTROL_KEY = "kairozen_secret_2025"
-
-def _check_key():
-    key = flask_request.args.get("key") or (flask_request.get_json(silent=True) or {}).get("key")
-    return key == CONTROL_KEY
-
-@flask_app.route("/health")
-def health():
-    return jsonify({"status": "running", "bot": "Kairozen v4"})
-
-@flask_app.route("/status")
-def status():
-    if not _check_key():
-        return jsonify({"error": "Unauthorized"}), 403
-    return jsonify({
-        "status": "running",
-        "users": len(users_db),
-        "orders": len(orders),
-        "wallets": len(wallets),
-    })
-
-@flask_app.route("/shutdown", methods=["GET", "POST"])
-def shutdown():
-    if not _check_key():
-        return jsonify({"error": "Unauthorized — wrong key"}), 403
-    logger.warning(f"{CLR_RED}🛑 Shutdown requested via control server!{CLR_RESET}")
-    try:
-        bot.send_message(ADMIN_ID, "🛑 <b>Bot កំពុងបិទ...</b>\nបានទទួល shutdown command តាម Control Server។", parse_mode="HTML")
-        time.sleep(1)
-    except: pass
-    def _stop():
-        time.sleep(0.5)
-        bot.stop_polling()
-        time.sleep(1)
-        os._exit(0)
-    threading.Thread(target=_stop, daemon=True).start()
-    return jsonify({"status": "shutting_down", "message": "Bot is stopping..."})
-
-@flask_app.route("/restart", methods=["GET", "POST"])
-def restart():
-    if not _check_key():
-        return jsonify({"error": "Unauthorized — wrong key"}), 403
-    logger.warning(f"{CLR_YELLOW}🔄 Restart requested via control server!{CLR_RESET}")
-    try:
-        bot.send_message(ADMIN_ID, "🔄 <b>Bot កំពុង Restart...</b>\nបានទទួល restart command តាម Control Server។", parse_mode="HTML")
-        time.sleep(1)
-    except: pass
-    def _restart():
-        time.sleep(0.5)
-        bot.stop_polling()
-        time.sleep(1)
-        os.execv(sys.executable, [sys.executable] + sys.argv)
-    threading.Thread(target=_restart, daemon=True).start()
-    return jsonify({"status": "restarting", "message": "Bot is restarting..."})
-
-@flask_app.route("/broadcast_web", methods=["POST"])
-def broadcast_web():
-    if not _check_key():
-        return jsonify({"error": "Unauthorized"}), 403
-    data = flask_request.get_json(silent=True) or {}
-    text = data.get("text", "").strip()
-    if not text:
-        return jsonify({"error": "No text provided"}), 400
-    sent = failed = 0
-    for u_id in list(users_db.keys()):
-        try:
-            bot.send_message(int(u_id), text, parse_mode="HTML")
-            sent += 1
-        except: failed += 1
-        time.sleep(0.05)
-    return jsonify({"sent": sent, "failed": failed})
-
-def run_flask():
-    logger.info(f"{CLR_CYAN}🌐 Control Server running on port 5055{CLR_RESET}")
-    flask_app.run(host="0.0.0.0", port=5055, debug=False, use_reloader=False)
-
-def print_banner():
-    banner = f"""
-{CLR_CYAN}{CLR_BOLD}╔══════════════════════════════════════════════════════════════╗
-║     {CLR_GREEN}Kairozen All-in-One Bot v4 — カイロゼン                  {CLR_CYAN}║
-║     {CLR_YELLOW}ហាងឌីជីថល · ដាក់លុយ KHQR                                    {CLR_CYAN}║
-║     {CLR_MAGENTA}Global Discount · Panel Admin                               {CLR_CYAN}║
-║     {CLR_WHITE}Compatible: Python 3.10+ · Termux / Pydroid 3         {CLR_CYAN}║
-╚══════════════════════════════════════════════════════════════╝{CLR_RESET}
-"""
-    print(banner)
-
-# ═══════════════════════════════════════════════════════════
-#  MAIN
-# ═══════════════════════════════════════════════════════════
-if __name__ == "__main__":
-    print_banner()
-    logger.info(f"{CLR_BOLD}{CLR_GREEN}🚀 Kairozen All-in-One Bot v4 កំពុងចាប់ផ្ដើម...{CLR_RESET}")
-    threading.Thread(target=run_flask, daemon=True).start()
-    bot.infinity_polling(timeout=20, long_polling_timeout=15)
+                bot.edit_message_text(txt, chat_id=uid, message_id=call.message.message_id, parse_mode="HTML", reply_markup=products_list_kb())
+            except
