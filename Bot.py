@@ -3,7 +3,7 @@
 ╔══════════════════════════════════════════════════════════════╗
 ║     Kairozen All-in-One Bot v4 — カイロゼン                  ║
 ║     ហាងឌីជីថល · ដាក់លុយ KHQR                                ║
-║     Global Discount · Panel Admin · Promo Code              ║
+║     Global Discount · Panel Admin                           ║
 ║     Compatible: Python 3.10+ · Termux / Pydroid 3         ║
 ╚══════════════════════════════════════════════════════════════╝
 ដំឡើង:
@@ -269,35 +269,6 @@ def _calc_discounted_price(price):
     return price
 
 # ═══════════════════════════════════════════════════════════
-#  PROMO CODE
-# ═══════════════════════════════════════════════════════════
-def apply_promo(uid, code, amount):
-    code = code.strip().upper()
-    p = promos.get(code)
-    if not p: return amount, 0, "❌ Promo Code ខុស!"
-    if p.get("uses", 0) > 0 and p.get("used", 0) >= p["uses"]:
-        return amount, 0, "❌ Promo Code ផុតសិទ្ធហើយ!"
-    user_used = p.get("user_used", {})
-    if str(uid) in user_used:
-        return amount, 0, "❌ អ្នកបានប្រើ Promo Code នេះហើយ!"
-    if p.get("pct", False):
-        discount = round(amount * float(p["discount"]) / 100, 2)
-    else:
-        discount = min(float(p["discount"]), amount)
-    final = max(0, round(amount - discount, 2))
-    return final, discount, None
-
-def confirm_promo(code, uid):
-    code = code.strip().upper()
-    p = promos.get(code)
-    if not p: return
-    p["used"] = p.get("used", 0) + 1
-    uu = p.get("user_used", {})
-    uu[str(uid)] = 1
-    p["user_used"] = uu
-    _save(PROMO_FILE, promos)
-
-# ═══════════════════════════════════════════════════════════
 #  KEYBOARDS
 # ═══════════════════════════════════════════════════════════
 def main_kb(uid=None):
@@ -326,7 +297,7 @@ def admin_kb():
     kb.row("💸 បន្ថែមប្រាក់",   "💔 កាត់ប្រាក់")
     kb.row("━━━ 👥 អ្នកប្រើ ━━━")
     kb.row("👥 អ្នកប្រើប្រាស់",  "📊 ស្ថិតិ")
-    kb.row("🎟️ លេខកូដPromo",   "📢 ផ្សព្វផ្សាយ")
+    kb.row("📢 ផ្សព្វផ្សាយ")
     kb.row("🔄 ធ្វើឱ្យទាន់សម័យ")
     return kb
 
@@ -341,6 +312,7 @@ def lang_select_kb():
          InlineKeyboardButton("🇬🇧 English", callback_data="setlang:en")]
     ])
 
+# [បានដកប៊ូតុង Promo Code ចោលរួចរាល់]
 def deposit_amt_kb(uid=None, promo_code=None):
     lang = get_lang(uid) if uid else "kh"
     amts = [1, 2, 5, 10, 20, 50]
@@ -354,13 +326,6 @@ def deposit_amt_kb(uid=None, promo_code=None):
     btns.append([InlineKeyboardButton(
         "✏️ ផ្ទាល់ខ្លួន" if lang=="kh" else "✏️ Custom",
         callback_data="dep:custom")])
-    if promo_code:
-        btns.append([InlineKeyboardButton(
-            f"🎟️ Promo: {promo_code} ✅", callback_data="dep:clrpromo")])
-    else:
-        btns.append([InlineKeyboardButton(
-            "🎟️ ដាក់ Promo Code" if lang=="kh" else "🎟️ Enter Promo Code",
-            callback_data="dep:promo")])
     return InlineKeyboardMarkup(btns)
 
 def products_kb():
@@ -497,7 +462,7 @@ def _watch_deposit(uid, uid_str, dep_id, amount, start_ts, sent_msg_id=None):
                        f"━━━━━━━━━━━━━━━━━━\n"
                        f"💰 បញ្ញើ: <b>${amount:.2f}</b>")
                 if bonus > 0:
-                    msg += f"\n🎟️ Promo Bonus: <b>+${bonus:.2f}</b>"
+                    msg += f"\n🎟️ Bonus: <b>+${bonus:.2f}</b>"
                 msg += (f"\n💳 Balance: <b>${new_b:.2f}</b>")
                 try:
                     bot.send_message(uid, msg, parse_mode="HTML", reply_markup=main_kb(uid))
@@ -505,7 +470,7 @@ def _watch_deposit(uid, uid_str, dep_id, amount, start_ts, sent_msg_id=None):
                 try:
                     bot.send_message(ADMIN_ID,
                         f"💰 <b>ដាក់លុយ ✅ (Auto)</b>\n👤 <code>{uid_str}</code>\n"
-                        f"💰 ${amount:.2f}" + (f" + Bonus ${bonus:.2f}" if bonus>0 else ""),
+                        f"💰 ${amount:.2f}",
                         parse_mode="HTML")
                 except: pass
                 if sent_msg_id:
@@ -553,17 +518,9 @@ def _watch_deposit(uid, uid_str, dep_id, amount, start_ts, sent_msg_id=None):
                 )
             except: pass
 
-def _send_deposit_qr(uid, amount, promo_code=None, label="💳 ដាក់ប្រាក់", bonus=0.0, promo_code_name=None):
+def _send_deposit_qr(uid, amount, label="💳 ដាក់ប្រាក់", bonus=0.0):
     uid_str = str(uid)
-    final_amount = amount
-    discount = 0
-    promo_applied = promo_code_name
-    if promo_code and not promo_applied:
-        fa, dc, err = apply_promo(uid, code=promo_code, amount=amount)
-        if not err:
-            final_amount = fa; discount = dc; promo_applied = promo_code
-
-    qr_str = _generate_khqr(uid, final_amount, f"uid={uid} ${final_amount}")
+    qr_str = _generate_khqr(uid, amount, f"uid={uid} ${amount}")
     if not qr_str:
         bot.send_message(uid, "⚠️ មានបញ្ហា Generate QR! ទំនាក់ Admin", parse_mode="HTML")
         return
@@ -578,36 +535,28 @@ def _send_deposit_qr(uid, amount, promo_code=None, label="💳 ដាក់ប�
 
     dep_id   = f"dep_{uid}_{int(time.time())}"
     start_ts = int(time.time())
-    total_credit = round(final_amount + bonus, 2)
+    total_credit = round(amount + bonus, 2)
 
     store_deps[dep_id] = {
-        "uid": uid_str, "amount": final_amount, "status": "pending",
-        "bonus": bonus, "promo": promo_applied or "",
-        "md5": md5_hash, "qr_str": qr_str,
+        "uid": uid_str, "amount": amount, "status": "pending",
+        "bonus": bonus, "md5": md5_hash, "qr_str": qr_str,
     }
     _save(STORE_DEP_FILE, store_deps)
 
     cap = (f"{label}\n"
            f"━━━━━━━━━━━━━━━━━━\n"
-           f"💰 ចំនួន: <b>${final_amount:.2f}</b>\n"
+           f"💰 ចំនួន: <b>${amount:.2f}</b>\n"
            f"⏱ រាប់ថយក្រោយ: <b>05:00 នាទី</b>\n"
            f"━━━━━━━━━━━━━━━━━━\n"
            f"📱 <b>Bakong KHQR សម្រាប់ទូទាត់</b>")
-    
-    if promo_applied and (bonus > 0 or discount > 0):
-        confirm_promo(promo_applied, uid)
 
     try:
         admin_txt = (
             f"📥 <b>ការស្នើដាក់លុយថ្មី!</b>\n"
             f"━━━━━━━━━━━━━━━━━━\n"
             f"👤 User ID: <code>{uid_str}</code>\n"
-            f"💰 ទឹកប្រាក់ស្នើ: <b>${final_amount:.2f}</b>"
+            f"💰 ទឹកប្រាក់ស្នើ: <b>${amount:.2f}</b>"
         )
-        if bonus > 0:
-            admin_txt += f"\n🎟️ Bonus Promo: <b>+${bonus:.2f}</b>"
-        admin_txt += f"\n💵 សរុបត្រូវបញ្ចូល: <b>${total_credit:.2f}</b>"
-
         admin_deposit_kb = InlineKeyboardMarkup([
             [
                 InlineKeyboardButton("✅ ដាក់ប្រាក់ឱ្យគេ", callback_data=f"manual_dep:approve:{dep_id}"),
@@ -660,7 +609,7 @@ def _send_deposit_qr(uid, amount, promo_code=None, label="💳 ដាក់ប�
         sent_msg_id = sent_msg.message_id
 
     threading.Thread(target=_watch_deposit,
-                     args=(uid, uid_str, dep_id, final_amount, start_ts, sent_msg_id), daemon=True).start()
+                     args=(uid, uid_str, dep_id, amount, start_ts, sent_msg_id), daemon=True).start()
 
 # ═══════════════════════════════════════════════════════════
 #  ORDER HELPERS
@@ -785,62 +734,17 @@ def cb_dep(call):
     val     = call.data[4:]
     bot.answer_callback_query(call.id)
 
-    if val == "promo":
-        waiting[uid] = {"step": "dep_enter_promo", "msg_id": call.message.message_id}
-        bot.send_message(uid,
-            "🎟️ <b>ដាក់ Promo Code:</b>\n"
-            "<i>ឧ: SAVE50 · GIFT1 · FREE</i>" if lang=="kh" else
-            "🎟️ <b>Enter Promo Code:</b>\n<i>e.g. SAVE50 · GIFT1</i>",
-            parse_mode="HTML", reply_markup=cancel_kb())
-        return
-
-    if val == "clrpromo":
-        step = waiting.get(uid)
-        if isinstance(step, dict): step.pop("promo", None)
-        try:
-            bot.edit_message_reply_markup(
-                chat_id=uid, message_id=call.message.message_id,
-                reply_markup=deposit_amt_kb(uid, None))
-        except: pass
-        return
-
     if val == "custom":
-        waiting[uid] = {"step": "dep_custom", "promo": _get_dep_promo(uid)}
+        waiting[uid] = {"step": "dep_custom"}
         bot.send_message(uid,
             "✏️ <b>ផ្ញើចំនួន $ ដែលចង់ deposit:</b>" if lang=="kh" else
             "✏️ <b>Send amount $ to deposit:</b>",
             parse_mode="HTML", reply_markup=cancel_kb())
         return
 
-    amount     = float(val)
-    promo_code = _get_dep_promo(uid)
+    amount = float(val)
     waiting.pop(uid, None)
-    _process_deposit(uid, uid_str, amount, promo_code)
-
-def _get_dep_promo(uid):
-    step = waiting.get(uid)
-    if isinstance(step, dict):
-        return step.get("promo")
-    return None
-
-def _process_deposit(uid, uid_str, amount, promo_code):
-    lang  = get_lang(uid)
-    bonus = 0.0
-    promo_applied = None
-
-    if promo_code:
-        p = promos.get(promo_code.upper())
-        if p and (p.get("uses", 0) == 0 or p.get("used", 0) < p.get("uses", 0)):
-            if str(uid) not in p.get("user_used", {}):
-                if p.get("pct", False):
-                    bonus = round(amount * float(p["discount"]) / 100, 2)
-                else:
-                    bonus = round(float(p["discount"]), 2)
-                promo_applied = promo_code.upper()
-
-    _send_deposit_qr(uid, amount,
-                     label=f"💳 <b>{'ដាក់ប្រាក់' if lang=='kh' else 'Top Up'}</b>",
-                     bonus=bonus, promo_code_name=promo_applied)
+    _send_deposit_qr(uid, amount, label=f"💳 <b>{'ដាក់ប្រាក់' if lang=='kh' else 'Top Up'}</b>")
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("manual_dep:"))
 def cb_manual_dep(call):
@@ -888,10 +792,8 @@ def cb_manual_dep(call):
         try:
             msg = (f"✅ <b>ដាក់លុយបានជោគជ័យ! (ដោយ Admin)</b>\n"
                    f"━━━━━━━━━━━━━━━━━━\n"
-                   f"💰 បញ្ញើ: <b>${amount:.2f}</b>")
-            if bonus > 0:
-                msg += f"\n🎟️ Bonus: <b>+${bonus:.2f}</b>"
-            msg += f"\n💳 សាច់ប្រាក់បច្ចុប្បន្ន: <b>${bal(target_uid):.2f}</b>"
+                   f"💰 បញ្ញើ: <b>${amount:.2f}</b>\n"
+                   f"💳 សាច់ប្រាក់បច្ចុប្បន្ន: <b>${bal(target_uid):.2f}</b>")
             bot.send_message(target_uid, msg, parse_mode="HTML", reply_markup=main_kb(target_uid))
         except Exception:
             pass
@@ -1828,16 +1730,6 @@ def handle(message):
                 "💔 <b>កាត់ប្រាក់</b>\n━━━━━━━━━━━━━━━━━━\nជ្រើសអ្នកប្រើ:",
                 parse_mode="HTML", reply_markup=InlineKeyboardMarkup(btns)); return
 
-        if text == "🎟️ លេខកូដPromo":
-            _show_promos(uid)
-            bot.send_message(uid,
-                "🎟️ <b>គ្រប់គ្រង Promo Code</b>",
-                parse_mode="HTML",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("➕ បន្ថែម Code", callback_data="adminpromo:add"),
-                     InlineKeyboardButton("📋 មើលទាំងអស់", callback_data="adminpromo:list")]
-                ])); return
-
         if text == "📢 ផ្សព្វផ្សាយ":
             waiting[uid] = "broadcast_msg"
             bot.send_message(uid,
@@ -1856,40 +1748,12 @@ def handle(message):
     #  USER SECTION
     # ══════════════════════════════════════════════════════
 
-    if isinstance(step, dict) and step.get("step") == "dep_enter_promo":
-        msg_id = step.get("msg_id")
-        code   = text.strip().upper()
-        _, _, err = apply_promo(uid, code, 1.0)
-        if err:
-            bot.send_message(uid, err + "\nព្យាយាមម្ដងទៀត:", reply_markup=cancel_kb()); return
-        waiting[uid] = {"step": "dep_choose_amt", "promo": code}
-        p = promos.get(code, {})
-        dtype = f"{p['discount']:.0f}%" if p.get("pct") else f"${float(p.get('discount',0)):.2f}"
-        bot.send_message(uid,
-            f"✅ Promo <b>{code}</b> ({dtype} bonus) applied!\n"
-            f"━━━━━━━━━━━━━━━━━━\n"
-            f"ចុច ចំនួន ដើម្បី deposit:",
-            parse_mode="HTML",
-            reply_markup=deposit_amt_kb(uid, code)); return
-
-    if isinstance(step, dict) and step.get("step") == "dep_choose_amt":
-        try:
-            amount = float(text.replace("$",""))
-            if amount < 0.5: raise ValueError
-            promo_code = step.get("promo")
-            waiting.pop(uid, None)
-            _process_deposit(uid, uid_str, amount, promo_code)
-        except:
-            bot.send_message(uid, "❌ ចំនួនខុស! ឧ: <code>5.00</code>", parse_mode="HTML")
-        return
-
     if isinstance(step, dict) and step.get("step") == "dep_custom":
         try:
             amount = float(text.replace("$",""))
             if amount < 0.5: raise ValueError
-            promo_code = step.get("promo")
             waiting.pop(uid, None)
-            _process_deposit(uid, uid_str, amount, promo_code)
+            _send_deposit_qr(uid, amount, label=f"💳 <b>{'ដាក់ប្រាក់' if lang=='kh' else 'Top Up'}</b>")
         except:
             bot.send_message(uid, "❌ ចំនួនខុស! ឧ: <code>5.00</code>", parse_mode="HTML")
         return
@@ -1899,7 +1763,7 @@ def handle(message):
             amount = float(text.replace("$",""))
             if amount < 0.5: raise ValueError
             waiting.pop(uid, None)
-            _process_deposit(uid, uid_str, amount, None)
+            _send_deposit_qr(uid, amount, label=f"💳 <b>{'ដាក់ប្រាក់' if lang=='kh' else 'Top Up'}</b>")
         except:
             bot.send_message(uid, "❌ ចំនួនខុស! ឧ: <code>5.00</code>", parse_mode="HTML")
         return
@@ -1980,7 +1844,7 @@ def handle(message):
             f"━━━━━━━━━━━━━━━━━━\n"
             f"💳 សាច់ប្រាក់: <b>${b:.2f}</b>\n"
             f"━━━━━━━━━━━━━━━━━━\n"
-            f"{'ជ្រើស ចំនួន ឬ ដាក់ Promo Code មុន:' if lang=='kh' else 'Choose Amount or add Promo Code first:'}",
+            f"{'ជ្រើស ចំនួន:' if lang=='kh' else 'Choose Amount:'}",
             parse_mode="HTML",
             reply_markup=deposit_amt_kb(uid)); return
 
@@ -2164,7 +2028,7 @@ def print_banner():
 {CLR_CYAN}{CLR_BOLD}╔══════════════════════════════════════════════════════════════╗
 ║     {CLR_GREEN}Kairozen All-in-One Bot v4 — カイロゼン                  {CLR_CYAN}║
 ║     {CLR_YELLOW}ហាងឌីជីថល · ដាក់លុយ KHQR                                    {CLR_CYAN}║
-║     {CLR_MAGENTA}Global Discount · Panel Admin · Promo Code              {CLR_CYAN}║
+║     {CLR_MAGENTA}Global Discount · Panel Admin                               {CLR_CYAN}║
 ║     {CLR_WHITE}Compatible: Python 3.10+ · Termux / Pydroid 3         {CLR_CYAN}║
 ╚══════════════════════════════════════════════════════════════╝{CLR_RESET}
 """
