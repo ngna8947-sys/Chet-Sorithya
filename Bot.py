@@ -298,7 +298,7 @@ def confirm_promo(code, uid):
     _save(PROMO_FILE, promos)
 
 # ═══════════════════════════════════════════════════════════
-#  KEYBOARDS (ដកប៊ូតុង សេវាកម្ម SMM ចោលនៅទីនេះ)
+#  KEYBOARDS
 # ═══════════════════════════════════════════════════════════
 def main_kb(uid=None):
     lang = get_lang(uid) if uid else "kh"
@@ -876,7 +876,7 @@ def cb_manual_dep(call):
     total_credit = round(amount + bonus, 2)
 
     if action == "approve":
-        if dep.get("status"] == "confirmed":
+        if dep.get("status") == "confirmed":
             bot.answer_callback_query(call.id, "⚠️ សំណើនេះបានបញ្ជាក់រួចរាល់ហើយ!", show_alert=True)
             return
 
@@ -1461,7 +1461,7 @@ def handle(message):
             bot.send_message(uid, "❌ ទម្រង់មិនត្រឹមត្រូវ! ប្រើឧទាហរណ៍: <code>ON 15</code> ឬ <code>OFF</code>", parse_mode="HTML")
             return
 
-        if text == "➕ បន្ថែមគ្រប់សេវាកម្ម" or text == "➕ បន្ថែមផលិតផលថ្មី":
+        if text == "➕ បន្ថែមផលិតផលថ្មី":
             kb_add_all = InlineKeyboardMarkup([
                 [InlineKeyboardButton("🛍️ បន្ថែមផលិតផលឌីជីថល", callback_data="admaddall:digital")],
             ])
@@ -1502,7 +1502,7 @@ def handle(message):
             except: bot.send_message(uid, "❌ Format ខុស")
             return
 
-        if isinstance(step, dict) and step.get("step"] == "add_balance_amt":
+        if isinstance(step, dict) and step.get("step") == "add_balance_amt":
             target = step["target"]
             try:
                 amt = float(text.replace("$",""))
@@ -1754,7 +1754,7 @@ def handle(message):
             return
 
         if text == "💳 ប្រាក់បញ្ញើ":
-            pend = [(k, v) for k, v in store_deps.items() if v.get("status"] == "pending"]
+            pend = [(k, v) for k, v in store_deps.items() if v.get("status") == "pending"]
             if not pend:
                 bot.send_message(uid, "✅ គ្មានការដាក់លុយ pending", reply_markup=admin_kb()); return
             lines = ["<b>💳 ប្រាក់បញ្ញើ រង់ចាំ</b>\n━━━━━━━━━━━━━━━━━━"]
@@ -1909,7 +1909,7 @@ def handle(message):
             bot.send_message(uid, "❌ ចំនួនខុស! ឧ: <code>5.00</code>", parse_mode="HTML")
         return
 
-    if isinstance(step, dict) and step.get("step"] == "order_qty":
+    if isinstance(step, dict) and step.get("step") == "order_qty":
         prod_id  = step["prod_id"]
         plan_idx = step["plan_idx"]
         unit_price = step["price"]
@@ -1989,7 +1989,7 @@ def handle(message):
 
     if text in ("📦 បញ្ជាទិញ", "📦 ការបញ្ជាទិញ", "📦 Orders"):
         livechat_users.discard(uid)
-        my_orders = {oid: o for oid, o in orders.items() if o.get("uid"] == uid_str}
+        my_orders = {oid: o for oid, o in orders.items() if o.get("uid") == uid_str}
         if not my_orders:
             bot.send_message(uid,
                 "📦 <b>បញ្ជាទិញ</b>\n\n❌ គ្មាន Order ទេ!",
