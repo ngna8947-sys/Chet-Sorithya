@@ -365,14 +365,12 @@ def deposit_amt_kb(uid=None, promo_code=None):
 
 def products_kb():
     if not products:
-        # បើអែតមីនមិនទាន់ដាក់ផលិតផលអ្វីសោះ បង្ហាញប៊ូតុងត្រឡប់ក្រោយ ឬសេចក្ដីជូនដំណឹង
         return InlineKeyboardMarkup([
             [InlineKeyboardButton("❌ មិនទាន់មានផលិតផលទេ", callback_data="none")],
             [InlineKeyboardButton("🔙 Back", callback_data="back:main")]
         ])
     
     btns = []
-    # បង្កើតប៊ូតុងផលិតផលស្វ័យប្រវត្តិតามទិន្នន័យដែល Admin បានបន្ថែម (២ ជួរស្អាត)
     row = []
     for p in products:
         icon = p.get('icon', '📦')
@@ -1988,7 +1986,7 @@ def handle(message):
 
     if text in ("📦 បញ្ជាទិញ", "📦 ការបញ្ជាទិញ", "📦 Orders"):
         livechat_users.discard(uid)
-        my_orders = {oid: o for oid, o in orders.items() if o.get("uid"] == uid_str}
+        my_orders = {oid: o for oid, o in orders.items() if o.get("uid") == uid_str}
         if not my_orders:
             bot.send_message(uid,
                 "📦 <b>បញ្ជាទិញ</b>\n\n❌ គ្មាន Order ទេ!",
