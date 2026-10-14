@@ -158,7 +158,7 @@ STRINGS = {
             "━━━━━━━━━━━━━━━━━━\n"
             "🌟 Bot នេះផ្ដល់សេវាកម្ម:\n"
             "🛍️ ទិញផលិតផលឌីជីថល\n"
-            "💳 បញ្ចូលលុយ · ប្រវត្តិ · ជំនួយ\n"
+            "💳 បញ្ចូលលុយ · ជំនួយ\n"
             "━━━━━━━━━━━━━━━━━━\n"
             "💰 សាច់ប្រាក់: <b>${:.2f}</b>"
         ),
@@ -194,7 +194,7 @@ STRINGS = {
             "━━━━━━━━━━━━━━━━━━\n"
             "🌟 Services available:\n"
             "🛍️ Buy Digital Products\n"
-            "💳 Top Up · History · Support\n"
+            "💳 Top Up · Support\n"
             "━━━━━━━━━━━━━━━━━━\n"
             "💰 Balance: <b>${:.2f}</b>"
         ),
@@ -306,12 +306,12 @@ def main_kb(uid=None):
     if lang == "en":
         kb.row("🛍️ Shop")
         kb.row("📦 Orders")
-        kb.row("💳 Top Up",        "👜 Wallet",         "📜 History")
+        kb.row("💳 Top Up",        "👜 Wallet")
         kb.row("💬 Support",       "💡 How to Use",    "🌐 Language")
     else:
         kb.row("🛍️ ហាងឌីជីថល")
         kb.row("📦 ការបញ្ជាទិញ")
-        kb.row("💳 ដាក់ប្រាក់",    "👜 កាបូបលុយ",      "📜 ប្រវត្តិ")
+        kb.row("💳 ដាក់ប្រាក់",    "👜 កាបូបលុយ")
         kb.row("💬 ជំនួយ Support", "💡 របៀបប្រើប្រាស់", "🌐 ភាសា / Language")
     return kb
 
@@ -364,38 +364,28 @@ def deposit_amt_kb(uid=None, promo_code=None):
     return InlineKeyboardMarkup(btns)
 
 def products_kb():
-    btns = [
-        [
-            InlineKeyboardButton("🎬 Capcut Pro", callback_data="prod:capcut"),
-            InlineKeyboardButton("📱 ALIGHT MOTION", callback_data="prod:alightmotion")
-        ],
-        [
-            InlineKeyboardButton("✨ GEMINI PRO", callback_data="prod:gemini"),
-            InlineKeyboardButton("🎨 Canva Pro", callback_data="prod:canva")
-        ],
-        [
-            InlineKeyboardButton("🤖 TEST API", callback_data="prod:testapi"),
-            InlineKeyboardButton("📄 Adobe Full", callback_data="prod:adobe")
-        ],
-        [
-            InlineKeyboardButton("📦 Email", callback_data="prod:email"),
-            InlineKeyboardButton("🟢 Spotify", callback_data="prod:spotify")
-        ],
-        [
-            InlineKeyboardButton("🪟 Microsoft", callback_data="prod:microsoft"),
-            InlineKeyboardButton("📄 iLovePdf", callback_data="prod:ilovepdf")
-        ],
-        [
-            InlineKeyboardButton("1 / 3", callback_data="page:1"),
-            InlineKeyboardButton("➡️ បន្ទាប់", callback_data="page:next")
-        ],
-        [
-            InlineKeyboardButton("🔄 ផ្ទុកឡើងវិញ", callback_data="reload")
-        ],
-        [
-            InlineKeyboardButton("🔙 Back", callback_data="back:main")
-        ]
-    ]
+    if not products:
+        # បើអែតមីនមិនទាន់ដាក់ផលិតផលអ្វីសោះ បង្ហាញប៊ូតុងត្រឡប់ក្រោយ ឬសេចក្ដីជូនដំណឹង
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton("❌ មិនទាន់មានផលិតផលទេ", callback_data="none")],
+            [InlineKeyboardButton("🔙 Back", callback_data="back:main")]
+        ])
+    
+    btns = []
+    # បង្កើតប៊ូតុងផលិតផលស្វ័យប្រវត្តិតามទិន្នន័យដែល Admin បានបន្ថែម (២ ជួរស្អាត)
+    row = []
+    for p in products:
+        icon = p.get('icon', '📦')
+        name = p['name']
+        pid = p['id']
+        row.append(InlineKeyboardButton(f"{icon} {name}", callback_data=f"prod:{pid}"))
+        if len(row) == 2:
+            btns.append(row)
+            row = []
+    if row:
+        btns.append(row)
+        
+    btns.append([InlineKeyboardButton("🔙 Back", callback_data="back:main")])
     return InlineKeyboardMarkup(btns)
 
 def plans_kb(prod_id):
@@ -1306,7 +1296,14 @@ def cb_back(call):
     if dest == "main":
         _show_welcome(uid)
     elif dest == "shop":
-        bot.send_message(uid, "🛍️ <b>ហាង</b>", parse_mode="HTML", reply_markup=products_kb())
+        if not products:
+            bot.send_message(uid, "❌ <b>ហាងកំពុងរៀបចំ</b>\n\nអែតមីនមិនទាន់បានដាក់បញ្ចូលផលិតផល ឬសេវាកម្មណាមួយឡើយ។ សូមអត់ធ្មត់រង់ចាំបន្តិច!", parse_mode="HTML", reply_markup=main_kb(uid))
+        else:
+            bot.send_message(uid, "🛍️ <b>ហាង</b>\n━━━━━━━━━━━━━━━━━━", parse_mode="HTML", reply_markup=products_kb())
+
+@bot.callback_query_handler(func=lambda c: c.data == "none")
+def cb_none(call):
+    bot.answer_callback_query(call.id, "❌ មិនទាន់មានផលិតផលទេ សូមអត់ធ្មត់រង់ចាំ Admin បន្ថែម!", show_alert=True)
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("useraction:"))
 def cb_useraction(call):
@@ -1970,9 +1967,11 @@ def handle(message):
 
     if text in ("🛍️ Shop", "🛍️ ហាងឌីជីថល", "🛍️ ហាង"):
         livechat_users.discard(uid)
-        bot.send_message(uid,
-            "🛍️ <b>ហាង</b>\n━━━━━━━━━━━━━━━━━━",
-            parse_mode="HTML", reply_markup=products_kb()); return
+        if not products:
+            bot.send_message(uid, "❌ <b>ហាងកំពុងរៀបចំ</b>\n\nអែតមីនមិនទាន់បានដាក់បញ្ចូលផលិតផល ឬសេវាកម្មណាមួយឡើយ។ សូមអត់ធ្មត់រង់ចាំបន្តិច!", parse_mode="HTML", reply_markup=main_kb(uid))
+        else:
+            bot.send_message(uid, "🛍️ <b>ហាង</b>\n━━━━━━━━━━━━━━━━━━", parse_mode="HTML", reply_markup=products_kb())
+        return
 
     if text in ("💳 ដាក់ប្រាក់", "💰 ដាក់ប្រាក់", "💰 Top Up", "💳 Top Up", "💸 បញ្ចូលលុយ"):
         livechat_users.discard(uid)
@@ -1989,7 +1988,7 @@ def handle(message):
 
     if text in ("📦 បញ្ជាទិញ", "📦 ការបញ្ជាទិញ", "📦 Orders"):
         livechat_users.discard(uid)
-        my_orders = {oid: o for oid, o in orders.items() if o.get("uid") == uid_str}
+        my_orders = {oid: o for oid, o in orders.items() if o.get("uid"] == uid_str}
         if not my_orders:
             bot.send_message(uid,
                 "📦 <b>បញ្ជាទិញ</b>\n\n❌ គ្មាន Order ទេ!",
@@ -2013,19 +2012,6 @@ def handle(message):
             f"━━━━━━━━━━━━━━━━━━\n"
             f"ចុច 💳 {'ដាក់ប្រាក់' if lang=='kh' else 'Top Up'} ដើម្បីដាក់លុយ",
             parse_mode="HTML", reply_markup=main_kb(uid)); return
-
-    if text in ("📜 ប្រវត្តិ", "📋 ប្រវត្តិ", "📜 History", "📋 History"):
-        livechat_users.discard(uid)
-        my_orders = {oid: o for oid, o in orders.items() if o.get("uid") == uid_str}
-        if not my_orders:
-            bot.send_message(uid,
-                f"📜 <b>{'ប្រវត្តិ' if lang=='kh' else 'History'}</b>\n\n❌ {'គ្មាន Order ទេ!' if lang=='kh' else 'No orders yet!'}",
-                parse_mode="HTML", reply_markup=main_kb(uid)); return
-        lines = [f"📜 <b>{'ប្រវត្តិ' if lang=='kh' else 'History'}</b>\n━━━━━━━━━━━━━━━━━━"]
-        for oid, o in sorted(my_orders.items(), key=lambda x: x[1].get("ts",0), reverse=True)[:15]:
-            dt = datetime.datetime.fromtimestamp(o.get("ts",0)).strftime("%d/%m %H:%M")
-            lines.append(f"🛍️ <code>{oid}</code> | {o['prod_name']} — {o.get('plan','?')} | <b>${o.get('price',0):.2f}</b> | {dt}")
-        bot.send_message(uid, "\n".join(lines)[:4000], parse_mode="HTML", reply_markup=main_kb(uid)); return
 
     if text in ("💡 របៀបប្រើប្រាស់", "💡 How to Use", "💡 របៀបប្រើ"):
         livechat_users.discard(uid)
