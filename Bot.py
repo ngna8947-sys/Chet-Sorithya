@@ -154,7 +154,7 @@ http = _make_session()
 STRINGS = {
     "kh": {
         "welcome": (
-            "👋 សូស្ដីមក <b>Kairozen カイロゼン</b>!\n"
+            "👋 សូស្ដីបង <b>Kairozen カイロゼン</b>!\n"
             "━━━━━━━━━━━━━━━━━━\n"
             "🌟 Bot នេះផ្ដល់សេវាកម្ម:\n"
             "🛍️ ទិញផលិតផលឌីជីថល\n"
@@ -190,7 +190,7 @@ STRINGS = {
     },
     "en": {
         "welcome": (
-            "👋 Welcome to <b>Kairozen カイロゼン</b>!\n"
+            "👋 Hello <b>Kairozen カイロゼン</b>!\n"
             "━━━━━━━━━━━━━━━━━━\n"
             "🌟 Services available:\n"
             "🛍️ Buy Digital Products\n"
@@ -312,7 +312,6 @@ def lang_select_kb():
          InlineKeyboardButton("🇬🇧 English", callback_data="setlang:en")]
     ])
 
-# [បានដកប៊ូតុង Promo Code ចោលរួចរាល់]
 def deposit_amt_kb(uid=None, promo_code=None):
     lang = get_lang(uid) if uid else "kh"
     amts = [1, 2, 5, 10, 20, 50]
@@ -1651,7 +1650,7 @@ def handle(message):
             return
 
         if text == "💳 ប្រាក់បញ្ញើ":
-            pend = [(k, v) for k, v in store_deps.items() if v.get("status") == "pending"]
+            pend = [(k, v) for k, v in store_deps.items() if v.get("status"] == "pending"]
             if not pend:
                 bot.send_message(uid, "✅ គ្មានការដាក់លុយ pending", reply_markup=admin_kb()); return
             lines = ["<b>💳 ប្រាក់បញ្ញើ រង់ចាំ</b>\n━━━━━━━━━━━━━━━━━━"]
